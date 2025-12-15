@@ -57,6 +57,9 @@ export const es: TranslationStructure = {
         fileViewer: 'Visor de archivos',
         loading: 'Cargando...',
         retry: 'Reintentar',
+        scrollToLatest: 'Ir al final',
+        showMore: 'Mostrar más',
+        showLess: 'Mostrar menos',
     },
 
     profile: {
@@ -79,6 +82,7 @@ export const es: TranslationStructure = {
         permissionRequired: 'permiso requerido',
         activeNow: 'Activo ahora',
         unknown: 'desconocido',
+        thinking: ({ duration }: { duration: string }) => `Pensando... ${duration}`,
     },
 
     time: {
@@ -288,6 +292,10 @@ export const es: TranslationStructure = {
 
     session: {
         inputPlaceholder: 'Escriba un mensaje ...',
+        searchMessages: 'Buscar mensajes',
+        searchPlaceholder: 'Buscar en mensajes...',
+        noSearchResults: 'No se encontraron mensajes',
+        searchResultsCount: ({ count }: { count: number }) => `${count} ${count === 1 ? 'resultado' : 'resultados'}`,
     },
 
     commandPalette: {
@@ -442,6 +450,8 @@ export const es: TranslationStructure = {
     toolView: {
         input: 'Entrada',
         output: 'Salida',
+        completedIn: ({ duration }: { duration: string }) => `Completado en ${duration}`,
+        executionTime: 'Tiempo de Ejecución',
     },
 
     tools: {
@@ -719,6 +729,7 @@ export const es: TranslationStructure = {
         unknownEvent: 'Evento desconocido',
         usageLimitUntil: ({ time }: { time: string }) => `Límite de uso alcanzado hasta ${time}`,
         unknownTime: 'tiempo desconocido',
+        sentAt: ({ time }: { time: string }) => `Enviado a las ${time}`,
     },
 
     codex: {
@@ -847,6 +858,14 @@ export const es: TranslationStructure = {
         usageOverTime: 'Uso a lo largo del tiempo',
         byModel: 'Por modelo',
         noData: 'No hay datos de uso disponibles',
+        tokenUsage: 'Uso de Tokens',
+        inputTokens: 'Tokens de Entrada',
+        outputTokens: 'Tokens de Salida',
+        cacheCreation: 'Creación de Caché',
+        cacheRead: 'Lectura de Caché',
+        contextSize: 'Tamaño del Contexto',
+        saved: 'ahorrado',
+        cacheSaved: ({ tokens }: { tokens: string }) => `${tokens} ahorrados`,
     },
 
     feed: {

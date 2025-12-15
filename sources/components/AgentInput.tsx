@@ -16,6 +16,7 @@ import { FloatingOverlay } from './FloatingOverlay';
 import { TextInputState, MultiTextInputHandle } from './MultiTextInput';
 import { applySuggestion } from './autocomplete/applySuggestion';
 import { GitStatusBadge, useHasMeaningfulGitStatus } from './GitStatusBadge';
+import { TokenUsageIndicator } from './TokenUsageIndicator';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useSetting } from '@/sync/storage';
 import { Theme } from '@/theme';
@@ -722,6 +723,12 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 }}>
                                     {props.connectionStatus ? '• ' : ''}{contextWarning.text}
                                 </Text>
+                            )}
+                            {/* Token usage indicator */}
+                            {props.usageData && (
+                                <View style={{ marginLeft: (props.connectionStatus || contextWarning) ? 8 : 0 }}>
+                                    <TokenUsageIndicator usageData={props.usageData} />
+                                </View>
                             )}
                         </View>
                         <View style={{

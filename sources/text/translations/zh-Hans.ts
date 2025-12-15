@@ -59,6 +59,9 @@ export const zhHans: TranslationStructure = {
         fileViewer: '文件查看器',
         loading: '加载中...',
         retry: '重试',
+        scrollToLatest: '滚动到最新',
+        showMore: '显示更多',
+        showLess: '显示更少',
     },
 
     profile: {
@@ -81,6 +84,7 @@ export const zhHans: TranslationStructure = {
         permissionRequired: '需要权限',
         activeNow: '当前活跃',
         unknown: '未知',
+        thinking: ({ duration }: { duration: string }) => `思考中... ${duration}`,
     },
 
     time: {
@@ -290,6 +294,10 @@ export const zhHans: TranslationStructure = {
 
     session: {
         inputPlaceholder: '输入消息...',
+        searchMessages: '搜索消息',
+        searchPlaceholder: '在消息中搜索...',
+        noSearchResults: '未找到消息',
+        searchResultsCount: ({ count }: { count: number }) => `${count} 个结果`,
     },
 
     commandPalette: {
@@ -444,6 +452,8 @@ export const zhHans: TranslationStructure = {
     toolView: {
         input: '输入',
         output: '输出',
+        completedIn: ({ duration }: { duration: string }) => `${duration}内完成`,
+        executionTime: '执行时间',
     },
 
     tools: {
@@ -721,6 +731,7 @@ export const zhHans: TranslationStructure = {
         unknownEvent: '未知事件',
         usageLimitUntil: ({ time }: { time: string }) => `使用限制到 ${time}`,
         unknownTime: '未知时间',
+        sentAt: ({ time }: { time: string }) => `发送于 ${time}`,
     },
 
     codex: {
@@ -848,6 +859,14 @@ export const zhHans: TranslationStructure = {
         usageOverTime: '使用趋势',
         byModel: '按模型',
         noData: '暂无使用数据',
+        tokenUsage: '令牌使用量',
+        inputTokens: '输入令牌',
+        outputTokens: '输出令牌',
+        cacheCreation: '缓存创建',
+        cacheRead: '缓存读取',
+        contextSize: '上下文大小',
+        saved: '已节省',
+        cacheSaved: ({ tokens }: { tokens: string }) => `已节省 ${tokens}`,
     },
 
     feed: {

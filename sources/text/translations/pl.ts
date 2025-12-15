@@ -68,6 +68,9 @@ export const pl: TranslationStructure = {
         fileViewer: 'Przeglądarka plików',
         loading: 'Ładowanie...',
         retry: 'Ponów',
+        scrollToLatest: 'Przewiń na dół',
+        showMore: 'Pokaż więcej',
+        showLess: 'Pokaż mniej',
     },
 
     profile: {
@@ -90,6 +93,7 @@ export const pl: TranslationStructure = {
         permissionRequired: 'wymagane uprawnienie',
         activeNow: 'Aktywny teraz',
         unknown: 'nieznane',
+        thinking: ({ duration }: { duration: string }) => `Myśli... ${duration}`,
     },
 
     time: {
@@ -299,6 +303,10 @@ export const pl: TranslationStructure = {
 
     session: {
         inputPlaceholder: 'Wpisz wiadomość...',
+        searchMessages: 'Szukaj wiadomości',
+        searchPlaceholder: 'Szukaj w wiadomościach...',
+        noSearchResults: 'Nie znaleziono wiadomości',
+        searchResultsCount: ({ count }: { count: number }) => `${count} ${plural({ count, one: 'wynik', few: 'wyniki', many: 'wyników' })}`,
     },
 
     commandPalette: {
@@ -452,6 +460,8 @@ export const pl: TranslationStructure = {
     toolView: {
         input: 'Wejście',
         output: 'Wyjście',
+        completedIn: ({ duration }: { duration: string }) => `Ukończono w ${duration}`,
+        executionTime: 'Czas wykonania',
     },
 
     tools: {
@@ -729,6 +739,7 @@ export const pl: TranslationStructure = {
         unknownEvent: 'Nieznane zdarzenie',
         usageLimitUntil: ({ time }: { time: string }) => `Osiągnięto limit użycia do ${time}`,
         unknownTime: 'nieznany czas',
+        sentAt: ({ time }: { time: string }) => `Wysłano o ${time}`,
     },
 
     codex: {
@@ -870,6 +881,14 @@ export const pl: TranslationStructure = {
         usageOverTime: 'Użycie w czasie',
         byModel: 'Według modelu',
         noData: 'Brak danych o użyciu',
+        tokenUsage: 'Użycie tokenów',
+        inputTokens: 'Tokeny wejściowe',
+        outputTokens: 'Tokeny wyjściowe',
+        cacheCreation: 'Tworzenie pamięci podręcznej',
+        cacheRead: 'Odczyt pamięci podręcznej',
+        contextSize: 'Rozmiar kontekstu',
+        saved: 'zaoszczędzono',
+        cacheSaved: ({ tokens }: { tokens: string }) => `${tokens} zaoszczędzono`,
     },
 
     feed: {

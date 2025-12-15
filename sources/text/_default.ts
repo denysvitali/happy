@@ -57,6 +57,9 @@ export const en = {
         fileViewer: 'File Viewer',
         loading: 'Loading...',
         retry: 'Retry',
+        scrollToLatest: 'Scroll to latest',
+        showMore: 'Show more',
+        showLess: 'Show less',
     },
 
     profile: {
@@ -79,6 +82,7 @@ export const en = {
         permissionRequired: 'permission required',
         activeNow: 'Active now',
         unknown: 'unknown',
+        thinking: ({ duration }: { duration: string }) => `Thinking... ${duration}`,
     },
 
     time: {
@@ -288,6 +292,10 @@ export const en = {
 
     session: {
         inputPlaceholder: 'Type a message ...',
+        searchMessages: 'Search messages',
+        searchPlaceholder: 'Search in messages...',
+        noSearchResults: 'No messages found',
+        searchResultsCount: ({ count }: { count: number }) => `${count} ${count === 1 ? 'result' : 'results'}`,
     },
 
     commandPalette: {
@@ -442,6 +450,8 @@ export const en = {
     toolView: {
         input: 'Input',
         output: 'Output',
+        completedIn: ({ duration }: { duration: string }) => `Completed in ${duration}`,
+        executionTime: 'Execution Time',
     },
 
     tools: {
@@ -719,6 +729,7 @@ export const en = {
         unknownEvent: 'Unknown event',
         usageLimitUntil: ({ time }: { time: string }) => `Usage limit reached until ${time}`,
         unknownTime: 'unknown time',
+        sentAt: ({ time }: { time: string }) => `Sent at ${time}`,
     },
 
     codex: {
@@ -842,11 +853,19 @@ export const en = {
         last30Days: 'Last 30 days',
         totalTokens: 'Total Tokens',
         totalCost: 'Total Cost',
-        tokens: 'Tokens',
+        tokens: 'tokens',
         cost: 'Cost',
         usageOverTime: 'Usage over time',
         byModel: 'By Model',
         noData: 'No usage data available',
+        tokenUsage: 'Token Usage',
+        inputTokens: 'Input Tokens',
+        outputTokens: 'Output Tokens',
+        cacheCreation: 'Cache Creation',
+        cacheRead: 'Cache Read',
+        contextSize: 'Context Size',
+        saved: 'saved',
+        cacheSaved: ({ tokens }: { tokens: string }) => `${tokens} saved`,
     },
 
     feed: {

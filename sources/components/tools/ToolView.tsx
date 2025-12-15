@@ -5,6 +5,7 @@ import { Ionicons, Octicons } from '@expo/vector-icons';
 import { getToolViewComponent } from './views/_all';
 import { Message, ToolCall } from '@/sync/typesMessage';
 import { CodeView } from '../CodeView';
+import { CollapsibleCodeView } from '../CollapsibleCodeView';
 import { ToolSectionView } from './ToolSectionView';
 import { useElapsedTime } from '@/hooks/useElapsedTime';
 import { ToolError } from './ToolError';
@@ -164,6 +165,11 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                                 <ElapsedView from={tool.createdAt} />
                             </View>
                         )}
+                        {tool.state === 'completed' && (
+                            <View style={styles.elapsedContainer}>
+                                <DurationView tool={tool} />
+                            </View>
+                        )}
                         {statusIcon}
                     </View>
                 </TouchableOpacity>
@@ -184,6 +190,11 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                         {tool.state === 'running' && (
                             <View style={styles.elapsedContainer}>
                                 <ElapsedView from={tool.createdAt} />
+                            </View>
+                        )}
+                        {tool.state === 'completed' && (
+                            <View style={styles.elapsedContainer}>
+                                <DurationView tool={tool} />
                             </View>
                         )}
                         {statusIcon}
@@ -236,8 +247,9 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
 
                         {tool.state === 'completed' && tool.result && (
                             <ToolSectionView title={t('toolView.output')}>
-                                <CodeView
+                                <CollapsibleCodeView
                                     code={typeof tool.result === 'string' ? tool.result : JSON.stringify(tool.result, null, 2)}
+                                    collapsedLines={15}
                                 />
                             </ToolSectionView>
                         )}
@@ -257,6 +269,39 @@ function ElapsedView(props: { from: number }) {
     const { from } = props;
     const elapsed = useElapsedTime(from);
     return <Text style={styles.elapsedText}>{elapsed.toFixed(1)}s</Text>;
+}
+
+/**
+ * Formats a duration in milliseconds into a human-readable string
+ */
+function formatDuration(durationMs: number): string {
+    const seconds = durationMs / 1000;
+
+    if (seconds < 60) {
+        return `${seconds.toFixed(1)}s`;
+    }
+
+    if (seconds < 3600) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = Math.floor(seconds % 60);
+        return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
+    }
+
+    const hours = Math.floor(seconds / 3600);
+    const remainingMinutes = Math.floor((seconds % 3600) / 60);
+    return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+}
+
+function DurationView(props: { tool: ToolCall }) {
+    const { tool } = props;
+
+    // Show completion duration for completed tools
+    if (tool.state === 'completed' && tool.startedAt && tool.completedAt) {
+        const duration = formatDuration(tool.completedAt - tool.startedAt);
+        return <Text style={styles.durationText}>{duration}</Text>;
+    }
+
+    return null;
 }
 
 const styles = StyleSheet.create((theme) => ({
@@ -293,6 +338,11 @@ const styles = StyleSheet.create((theme) => ({
     },
     elapsedText: {
         fontSize: 13,
+        color: theme.colors.textSecondary,
+        fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    },
+    durationText: {
+        fontSize: 11,
         color: theme.colors.textSecondary,
         fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
     },

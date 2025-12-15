@@ -6,6 +6,7 @@ import { ChatHeaderView } from '@/components/ChatHeaderView';
 import { ChatList } from '@/components/ChatList';
 import { Deferred } from '@/components/Deferred';
 import { EmptyMessages } from '@/components/EmptyMessages';
+import { SessionSearchModal } from '@/components/SessionSearchModal';
 import { VoiceAssistantStatusBar } from '@/components/VoiceAssistantStatusBar';
 import { useDraft } from '@/hooks/useDraft';
 import { Modal } from '@/modal';
@@ -21,7 +22,7 @@ import { t } from '@/text';
 import { tracking, trackMessageSent } from '@/track';
 import { isRunningOnMac } from '@/utils/platform';
 import { useDeviceType, useHeaderHeight, useIsLandscape, useIsTablet } from '@/utils/responsive';
-import { formatPathRelativeToHome, getSessionAvatarId, getSessionName, useSessionStatus } from '@/utils/sessionUtils';
+import { formatPathRelativeToHome, getSessionAvatarId, getSessionName, useSessionModel, useSessionStatus } from '@/utils/sessionUtils';
 import { isVersionSupported, MINIMUM_CLI_VERSION } from '@/utils/versionUtils';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -41,6 +42,24 @@ export const SessionView = React.memo((props: { id: string }) => {
     const isLandscape = useIsLandscape();
     const deviceType = useDeviceType();
     const headerHeight = useHeaderHeight();
+    const { messages } = useSessionMessages(sessionId);
+    const model = useSessionModel(messages);
+    const [showSearch, setShowSearch] = React.useState(false);
+
+    // Search handlers
+    const handleSearchPress = React.useCallback(() => {
+        setShowSearch(true);
+    }, []);
+
+    const handleSearchClose = React.useCallback(() => {
+        setShowSearch(false);
+    }, []);
+
+    const handleSearchMessagePress = React.useCallback((messageId: string) => {
+        // TODO: Scroll to message in the chat list
+        // For now, just close the search
+        setShowSearch(false);
+    }, []);
 
     // Compute header props based on session state
     const headerProps = useMemo(() => {
@@ -52,7 +71,8 @@ export const SessionView = React.memo((props: { id: string }) => {
                 avatarId: undefined,
                 onAvatarPress: undefined,
                 isConnected: false,
-                flavor: null
+                flavor: null,
+                model: null
             };
         }
 
@@ -64,7 +84,8 @@ export const SessionView = React.memo((props: { id: string }) => {
                 avatarId: undefined,
                 onAvatarPress: undefined,
                 isConnected: false,
-                flavor: null
+                flavor: null,
+                model: null
             };
         }
 
@@ -77,9 +98,10 @@ export const SessionView = React.memo((props: { id: string }) => {
             onAvatarPress: () => router.push(`/session/${sessionId}/info`),
             isConnected: isConnected,
             flavor: session.metadata?.flavor || null,
-            tintColor: isConnected ? '#000' : '#8E8E93'
+            tintColor: isConnected ? '#000' : '#8E8E93',
+            model: model
         };
-    }, [session, isDataReady, sessionId, router]);
+    }, [session, isDataReady, sessionId, router, model]);
 
     return (
         <>
@@ -116,6 +138,7 @@ export const SessionView = React.memo((props: { id: string }) => {
                     <ChatHeaderView
                         {...headerProps}
                         onBackPress={() => router.back()}
+                        onSearchPress={messages.length > 0 ? handleSearchPress : undefined}
                     />
                 </View>
             )}
@@ -139,6 +162,14 @@ export const SessionView = React.memo((props: { id: string }) => {
                     <SessionViewLoaded key={sessionId} sessionId={sessionId} session={session} />
                 )}
             </View>
+
+            {/* Search Modal */}
+            <SessionSearchModal
+                visible={showSearch}
+                onClose={handleSearchClose}
+                messages={messages}
+                onMessagePress={handleSearchMessagePress}
+            />
         </>
     );
 });

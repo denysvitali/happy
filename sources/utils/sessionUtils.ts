@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Session } from '@/sync/storageTypes';
+import { Message } from '@/sync/typesMessage';
 import { t } from '@/text';
 
 export type SessionState = 'disconnected' | 'thinking' | 'waiting' | 'permission_required';
@@ -215,3 +216,104 @@ export function formatLastSeen(activeAt: number, isActive: boolean = false): str
 }
 
 const vibingMessages = ["Accomplishing", "Actioning", "Actualizing", "Baking", "Booping", "Brewing", "Calculating", "Cerebrating", "Channelling", "Churning", "Clauding", "Coalescing", "Cogitating", "Computing", "Combobulating", "Concocting", "Conjuring", "Considering", "Contemplating", "Cooking", "Crafting", "Creating", "Crunching", "Deciphering", "Deliberating", "Determining", "Discombobulating", "Divining", "Doing", "Effecting", "Elucidating", "Enchanting", "Envisioning", "Finagling", "Flibbertigibbeting", "Forging", "Forming", "Frolicking", "Generating", "Germinating", "Hatching", "Herding", "Honking", "Ideating", "Imagining", "Incubating", "Inferring", "Manifesting", "Marinating", "Meandering", "Moseying", "Mulling", "Mustering", "Musing", "Noodling", "Percolating", "Perusing", "Philosophising", "Pontificating", "Pondering", "Processing", "Puttering", "Puzzling", "Reticulating", "Ruminating", "Scheming", "Schlepping", "Shimmying", "Simmering", "Smooshing", "Spelunking", "Spinning", "Stewing", "Sussing", "Synthesizing", "Thinking", "Tinkering", "Transmuting", "Unfurling", "Unravelling", "Vibing", "Wandering", "Whirring", "Wibbling", "Wizarding", "Working", "Wrangling"];
+
+/**
+ * Formats a model name into a human-readable display name.
+ * Examples:
+ * - "claude-opus-4-1-20250805" -> "Opus 4"
+ * - "claude-sonnet-4-5-20250929" -> "Sonnet 4.5"
+ * - "gpt-5-codex-low" -> "GPT-5 Codex"
+ */
+export function formatModelName(model: string | null | undefined): string | null {
+    if (!model) return null;
+
+    // Claude models
+    if (model.includes('claude-opus-4.5') || model.includes('claude-opus-4-5')) {
+        return 'Opus 4.5';
+    }
+    if (model.includes('claude-opus-4')) {
+        return 'Opus 4';
+    }
+    if (model.includes('claude-sonnet-4.5') || model.includes('claude-sonnet-4-5')) {
+        return 'Sonnet 4.5';
+    }
+    if (model.includes('claude-sonnet-4')) {
+        return 'Sonnet 4';
+    }
+    if (model.includes('claude-3.5-sonnet') || model.includes('claude-3-5-sonnet')) {
+        return 'Sonnet 3.5';
+    }
+    if (model.includes('claude-3-opus')) {
+        return 'Opus 3';
+    }
+    if (model.includes('claude-3-sonnet')) {
+        return 'Sonnet 3';
+    }
+    if (model.includes('claude-3-haiku')) {
+        return 'Haiku 3';
+    }
+
+    // GPT models
+    if (model.includes('gpt-5-codex')) {
+        return 'GPT-5 Codex';
+    }
+    if (model.includes('gpt-5')) {
+        return 'GPT-5';
+    }
+    if (model.includes('gpt-4o')) {
+        return 'GPT-4o';
+    }
+    if (model.includes('gpt-4-turbo')) {
+        return 'GPT-4 Turbo';
+    }
+    if (model.includes('gpt-4')) {
+        return 'GPT-4';
+    }
+
+    // Gemini models
+    if (model.includes('gemini-2.0')) {
+        if (model.includes('flash')) return 'Gemini 2.0 Flash';
+        return 'Gemini 2.0';
+    }
+    if (model.includes('gemini-1.5')) {
+        if (model.includes('pro')) return 'Gemini 1.5 Pro';
+        if (model.includes('flash')) return 'Gemini 1.5 Flash';
+        return 'Gemini 1.5';
+    }
+
+    // Fallback: return the original model name
+    return model;
+}
+
+/**
+ * Extracts the model name from the most recent assistant message in the session.
+ * Returns null if no model information is available.
+ */
+export function getSessionModel(messages: Message[]): string | null {
+    // Iterate through messages in reverse to find the most recent assistant message with model info
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const message = messages[i];
+
+        // Check if this is an agent message with meta.model
+        if (message.kind === 'agent-text' && message.meta?.model) {
+            return message.meta.model;
+        }
+
+        // Also check tool calls, as they may have model info
+        if (message.kind === 'tool-call' && message.meta?.model) {
+            return message.meta.model;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Hook to get the formatted model name for a session from its messages.
+ */
+export function useSessionModel(messages: Message[]): string | null {
+    return React.useMemo(() => {
+        const rawModel = getSessionModel(messages);
+        return formatModelName(rawModel);
+    }, [messages]);
+}
