@@ -68,6 +68,9 @@ export const ru: TranslationStructure = {
         fileViewer: 'Просмотр файла',
         loading: 'Загрузка...',
         retry: 'Повторить',
+        scrollToLatest: 'К последним',
+        showMore: 'Показать больше',
+        showLess: 'Показать меньше',
     },
 
     connect: {
@@ -370,6 +373,7 @@ export const ru: TranslationStructure = {
         permissionRequired: 'требуется разрешение',
         activeNow: 'Активен сейчас',
         unknown: 'неизвестно',
+        thinking: ({ duration }: { duration: string }) => `Думает... ${duration}`,
     },
 
     time: {
@@ -380,6 +384,10 @@ export const ru: TranslationStructure = {
 
     session: {
         inputPlaceholder: 'Введите сообщение...',
+        searchMessages: 'Поиск сообщений',
+        searchPlaceholder: 'Искать в сообщениях...',
+        noSearchResults: 'Сообщения не найдены',
+        searchResultsCount: ({ count }: { count: number }) => `${count} ${plural({ count, one: 'результат', few: 'результата', many: 'результатов' })}`,
     },
 
     commandPalette: {
@@ -452,6 +460,8 @@ export const ru: TranslationStructure = {
     toolView: {
         input: 'Входные данные',
         output: 'Результат',
+        completedIn: ({ duration }: { duration: string }) => `Выполнено за ${duration}`,
+        executionTime: 'Время выполнения',
     },
 
     tools: {
@@ -717,6 +727,7 @@ export const ru: TranslationStructure = {
         unknownEvent: 'Неизвестное событие',
         usageLimitUntil: ({ time }: { time: string }) => `Лимит использования достигнут до ${time}`,
         unknownTime: 'неизвестное время',
+        sentAt: ({ time }: { time: string }) => `Отправлено в ${time}`,
     },
 
     codex: {
@@ -869,6 +880,14 @@ export const ru: TranslationStructure = {
         usageOverTime: 'Использование во времени',
         byModel: 'По модели',
         noData: 'Данные об использовании недоступны',
+        tokenUsage: 'Использование токенов',
+        inputTokens: 'Входные токены',
+        outputTokens: 'Выходные токены',
+        cacheCreation: 'Создание кэша',
+        cacheRead: 'Чтение кэша',
+        contextSize: 'Размер контекста',
+        saved: 'сохранено',
+        cacheSaved: ({ tokens }: { tokens: string }) => `${tokens} сохранено`,
     },
 
     feed: {

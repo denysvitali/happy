@@ -57,6 +57,9 @@ export const ca: TranslationStructure = {
         fileViewer: 'Visualitzador de fitxers',
         loading: 'Carregant...',
         retry: 'Torna-ho a provar',
+        scrollToLatest: 'Anar al final',
+        showMore: 'Mostra més',
+        showLess: 'Mostra menys',
     },
 
     profile: {
@@ -79,6 +82,7 @@ export const ca: TranslationStructure = {
         permissionRequired: 'permís requerit',
         activeNow: 'Actiu ara',
         unknown: 'desconegut',
+        thinking: ({ duration }: { duration: string }) => `Pensant... ${duration}`,
     },
 
     time: {
@@ -288,6 +292,10 @@ export const ca: TranslationStructure = {
 
     session: {
         inputPlaceholder: 'Escriu un missatge...',
+        searchMessages: 'Cerca missatges',
+        searchPlaceholder: 'Cerca als missatges...',
+        noSearchResults: 'No s\'han trobat missatges',
+        searchResultsCount: ({ count }: { count: number }) => `${count} ${count === 1 ? 'resultat' : 'resultats'}`,
     },
 
     commandPalette: {
@@ -442,6 +450,8 @@ export const ca: TranslationStructure = {
     toolView: {
         input: 'Entrada',
         output: 'Sortida',
+        completedIn: ({ duration }: { duration: string }) => `Completat en ${duration}`,
+        executionTime: 'Temps d\'Execució',
     },
 
     tools: {
@@ -719,6 +729,7 @@ export const ca: TranslationStructure = {
         unknownEvent: 'Esdeveniment desconegut',
         usageLimitUntil: ({ time }: { time: string }) => `Límit d'ús assolit fins a ${time}`,
         unknownTime: 'temps desconegut',
+        sentAt: ({ time }: { time: string }) => `Enviat a les ${time}`,
     },
 
     codex: {
@@ -846,6 +857,14 @@ export const ca: TranslationStructure = {
         usageOverTime: 'Ús al llarg del temps',
         byModel: 'Per model',
         noData: "No hi ha dades d'ús disponibles",
+        tokenUsage: 'Ús de Tokens',
+        inputTokens: 'Tokens d\'Entrada',
+        outputTokens: 'Tokens de Sortida',
+        cacheCreation: 'Creació de Memòria Cau',
+        cacheRead: 'Lectura de Memòria Cau',
+        contextSize: 'Mida del Context',
+        saved: 'estalviat',
+        cacheSaved: ({ tokens }: { tokens: string }) => `${tokens} estalviats`,
     },
 
     feed: {

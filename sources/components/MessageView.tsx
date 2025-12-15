@@ -1,6 +1,6 @@
 import * as React from "react";
-import { View, Text } from "react-native";
-import { StyleSheet } from 'react-native-unistyles';
+import { View, Text, Pressable } from "react-native";
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { MarkdownView } from "./markdown/MarkdownView";
 import { t } from '@/text';
 import { Message, UserTextMessage, AgentTextMessage, ToolCallMessage } from "@/sync/typesMessage";
@@ -10,6 +10,7 @@ import { ToolView } from "./tools/ToolView";
 import { AgentEvent } from "@/sync/typesRaw";
 import { sync } from '@/sync/sync';
 import { Option } from './markdown/MarkdownView';
+import { hapticsLight } from './haptics';
 
 export const MessageView = (props: {
   message: Message;
@@ -64,22 +65,46 @@ function RenderBlock(props: {
   }
 }
 
+/**
+ * Format timestamp for display
+ */
+function formatMessageTime(timestamp: number): string {
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+}
+
 function UserTextBlock(props: {
   message: UserTextMessage;
   sessionId: string;
 }) {
+  const { theme } = useUnistyles();
+  const [showTimestamp, setShowTimestamp] = React.useState(false);
+
   const handleOptionPress = React.useCallback((option: Option) => {
     sync.sendMessage(props.sessionId, option.title);
   }, [props.sessionId]);
 
+  const handlePress = React.useCallback(() => {
+    hapticsLight();
+    setShowTimestamp(prev => !prev);
+  }, []);
+
   return (
     <View style={styles.userMessageContainer}>
-      <View style={styles.userMessageBubble}>
-        <MarkdownView markdown={props.message.displayText || props.message.text} onOptionPress={handleOptionPress} />
-        {/* {__DEV__ && (
-          <Text style={styles.debugText}>{JSON.stringify(props.message.meta)}</Text>
-        )} */}
-      </View>
+      <Pressable onPress={handlePress}>
+        <View style={styles.userMessageBubble}>
+          <MarkdownView markdown={props.message.displayText || props.message.text} onOptionPress={handleOptionPress} />
+        </View>
+      </Pressable>
+      {showTimestamp && (
+        <Text style={[styles.timestampText, { color: theme.colors.textSecondary, alignSelf: 'flex-end' }]}>
+          {t('message.sentAt', { time: formatMessageTime(props.message.createdAt) })}
+        </Text>
+      )}
     </View>
   );
 }
@@ -88,13 +113,28 @@ function AgentTextBlock(props: {
   message: AgentTextMessage;
   sessionId: string;
 }) {
+  const { theme } = useUnistyles();
+  const [showTimestamp, setShowTimestamp] = React.useState(false);
+
   const handleOptionPress = React.useCallback((option: Option) => {
     sync.sendMessage(props.sessionId, option.title);
   }, [props.sessionId]);
 
+  const handlePress = React.useCallback(() => {
+    hapticsLight();
+    setShowTimestamp(prev => !prev);
+  }, []);
+
   return (
     <View style={styles.agentMessageContainer}>
-      <MarkdownView markdown={props.message.text} onOptionPress={handleOptionPress} />
+      <Pressable onPress={handlePress}>
+        <MarkdownView markdown={props.message.text} onOptionPress={handleOptionPress} />
+      </Pressable>
+      {showTimestamp && (
+        <Text style={[styles.timestampText, { color: theme.colors.textSecondary }]}>
+          {t('message.sentAt', { time: formatMessageTime(props.message.createdAt) })}
+        </Text>
+      )}
     </View>
   );
 }
@@ -211,5 +251,11 @@ const styles = StyleSheet.create((theme) => ({
   debugText: {
     color: theme.colors.agentEventText,
     fontSize: 12,
+  },
+  timestampText: {
+    fontSize: 11,
+    marginTop: -8,
+    marginBottom: 8,
+    paddingHorizontal: 4,
   },
 }));

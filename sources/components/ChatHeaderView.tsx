@@ -14,11 +14,13 @@ interface ChatHeaderViewProps {
     subtitle?: string;
     onBackPress?: () => void;
     onAvatarPress?: () => void;
+    onSearchPress?: () => void;
     avatarId?: string;
     backgroundColor?: string;
     tintColor?: string;
     isConnected?: boolean;
     flavor?: string | null;
+    model?: string | null;
 }
 
 export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
@@ -26,9 +28,11 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
     subtitle,
     onBackPress,
     onAvatarPress,
+    onSearchPress,
     avatarId,
     isConnected = true,
     flavor,
+    model,
 }) => {
     const { theme } = useUnistyles();
     const navigation = useNavigation();
@@ -56,19 +60,44 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
                 </Pressable>
                 
                 <View style={styles.titleContainer}>
-                    <Text
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                        style={[
-                            styles.title,
-                            {
-                                color: theme.colors.header.tint,
-                                ...Typography.default('semiBold')
-                            }
-                        ]}
-                    >
-                        {title}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                            style={[
+                                styles.title,
+                                {
+                                    color: theme.colors.header.tint,
+                                    ...Typography.default('semiBold'),
+                                    flexShrink: 1,
+                                }
+                            ]}
+                        >
+                            {title}
+                        </Text>
+                        {model && (
+                            <View style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                backgroundColor: theme.colors.header.tint + '15',
+                                paddingHorizontal: 6,
+                                paddingVertical: 2,
+                                borderRadius: 4,
+                                flexShrink: 0,
+                            }}>
+                                <Text
+                                    style={{
+                                        fontSize: 10,
+                                        fontWeight: '600',
+                                        color: theme.colors.header.tint,
+                                        opacity: 0.8,
+                                    }}
+                                >
+                                    {model}
+                                </Text>
+                            </View>
+                        )}
+                    </View>
                     {subtitle && (
                         <Text
                             numberOfLines={1}
@@ -86,7 +115,21 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
                         </Text>
                     )}
                 </View>
-                
+
+                {onSearchPress && (
+                    <Pressable
+                        onPress={onSearchPress}
+                        hitSlop={15}
+                        style={styles.searchButton}
+                    >
+                        <Ionicons
+                            name="search"
+                            size={22}
+                            color={theme.colors.header.tint}
+                        />
+                    </Pressable>
+                )}
+
                 {avatarId && onAvatarPress && (
                     <Pressable
                         onPress={onAvatarPress}
@@ -152,5 +195,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: Platform.select({ ios: -8, default: -8 }),
+    },
+    searchButton: {
+        width: 44,
+        height: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 });
