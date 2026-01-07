@@ -67,6 +67,9 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
+      - name: Generate Expo Router types
+        run: npx expo customize tsconfig.json
+
       - name: Run typecheck
         run: yarn typecheck
 
@@ -125,6 +128,9 @@ jobs:
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
+
+      - name: Generate Expo Router types
+        run: npx expo customize tsconfig.json
 
       - name: Run typecheck
         run: yarn typecheck

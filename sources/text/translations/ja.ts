@@ -195,6 +195,9 @@ export const ja: TranslationStructure = {
         commandPalette: 'コマンドパレット',
         commandPaletteEnabled: '⌘Kで開く',
         commandPaletteDisabled: 'クイックコマンドアクセスは無効',
+        enterToSend: 'Enterで送信',
+        enterToSendEnabled: 'Enterで送信（Shift+Enterで改行）',
+        enterToSendDisabled: 'Enterで改行',
         markdownCopyV2: 'Markdownコピー v2',
         markdownCopyV2Subtitle: '長押しでコピーモーダルを開く',
         hideInactiveSessions: '非アクティブセッションを非表示',
@@ -484,6 +487,11 @@ export const ja: TranslationStructure = {
             reasoning: '推論',
             applyChanges: 'ファイルを更新',
             viewDiff: '現在のファイル変更',
+            question: '質問',
+        },
+        askUserQuestion: {
+            submit: '回答を送信',
+            multipleQuestions: ({ count }: { count: number }) => `${count}件の質問`,
         },
         desc: {
             terminalCmd: ({ cmd }: { cmd: string }) => `ターミナル(cmd: ${cmd})`,

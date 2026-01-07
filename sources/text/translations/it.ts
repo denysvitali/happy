@@ -192,6 +192,9 @@ export const it: TranslationStructure = {
         commandPalette: 'Palette comandi',
         commandPaletteEnabled: 'Premi ⌘K per aprire',
         commandPaletteDisabled: 'Accesso rapido ai comandi disabilitato',
+        enterToSend: 'Invio per inviare',
+        enterToSendEnabled: 'Premi Invio per inviare (Shift+Invio per nuova riga)',
+        enterToSendDisabled: 'Invio inserisce una nuova riga',
         markdownCopyV2: 'Markdown Copy v2',
         markdownCopyV2Subtitle: 'Pressione lunga apre la finestra di copia',
         hideInactiveSessions: 'Nascondi sessioni inattive',
@@ -481,6 +484,11 @@ export const it: TranslationStructure = {
             reasoning: 'Ragionamento',
             applyChanges: 'Aggiorna file',
             viewDiff: 'Modifiche file attuali',
+            question: 'Domanda',
+        },
+        askUserQuestion: {
+            submit: 'Invia risposta',
+            multipleQuestions: ({ count }: { count: number }) => `${count} domande`,
         },
         desc: {
             terminalCmd: ({ cmd }: { cmd: string }) => `Terminale(cmd: ${cmd})`,
