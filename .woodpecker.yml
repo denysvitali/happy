@@ -14,28 +14,12 @@ steps:
       - 'echo "BUILD_TYPE=${BUILD_TYPE:-both}  APP_ENV=${APP_ENV:-development}"'
     environment:
       YARN_CACHE_FOLDER: /tmp/yarn-cache
-    settings:
-      resources:
-        requests:
-          memory: 1Gi
-          cpu: "1"
-        limits:
-          memory: 2Gi
-          cpu: "2"
 
   typecheck:
     image: node:20-bullseye
     depends_on: [deps]
     commands:
       - yarn typecheck
-    settings:
-      resources:
-        requests:
-          memory: 512Mi
-          cpu: "1"
-        limits:
-          memory: 1Gi
-          cpu: "2"
 
   build_debug:
     image: ghcr.io/cirruslabs/android-sdk:34
@@ -58,14 +42,6 @@ steps:
     environment:
       GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx3g -XX:+HeapDumpOnOutOfMemoryError"'
       GRADLE_USER_HOME: .gradle
-    settings:
-      resources:
-        requests:
-          memory: 3Gi
-          cpu: "2"
-        limits:
-          memory: 5Gi
-          cpu: "4"
 
   build_release:
     image: ghcr.io/cirruslabs/android-sdk:34
@@ -103,14 +79,6 @@ steps:
         from_secret: ANDROID_KEY_ALIAS
       ANDROID_KEY_PASSWORD:
         from_secret: ANDROID_KEY_PASSWORD
-    settings:
-      resources:
-        requests:
-          memory: 3Gi
-          cpu: "2"
-        limits:
-          memory: 5Gi
-          cpu: "4"
 
   upload_debug:
     image: curlimages/curl:latest
@@ -176,14 +144,6 @@ steps:
         from_secret: GITHUB_TOKEN
       DRONE_REPO: ${DRONE_REPO}
       CI_COMMIT_SHA: ${CI_COMMIT_SHA}
-    settings:
-      resources:
-        requests:
-          memory: 128Mi
-          cpu: "100m"
-        limits:
-          memory: 256Mi
-          cpu: "500m"
 
   upload_release:
     image: curlimages/curl:latest
@@ -229,11 +189,3 @@ steps:
         from_secret: GITHUB_TOKEN
       DRONE_REPO: ${DRONE_REPO}
       CI_COMMIT_TAG: ${CI_COMMIT_TAG}
-    settings:
-      resources:
-        requests:
-          memory: 128Mi
-          cpu: "100m"
-        limits:
-          memory: 256Mi
-          cpu: "500m"
