@@ -14,12 +14,24 @@ steps:
       - 'echo "BUILD_TYPE=${BUILD_TYPE:-both}  APP_ENV=${APP_ENV:-development}"'
     environment:
       YARN_CACHE_FOLDER: /tmp/yarn-cache
+    backend_options:
+      kubernetes:
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 250m
 
   typecheck:
     image: node:20-bullseye
     depends_on: [deps]
     commands:
       - yarn typecheck
+    backend_options:
+      kubernetes:
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: 100m
 
   build_debug:
     image: ghcr.io/cirruslabs/android-sdk:34
@@ -42,6 +54,14 @@ steps:
     environment:
       GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx3g -XX:+HeapDumpOnOutOfMemoryError"'
       GRADLE_USER_HOME: .gradle
+    backend_options:
+      kubernetes:
+        resources:
+          requests:
+            memory: 2Gi
+            cpu: 500m
+          limits:
+            memory: 4Gi
 
   build_release:
     image: ghcr.io/cirruslabs/android-sdk:34
@@ -79,6 +99,14 @@ steps:
         from_secret: ANDROID_KEY_ALIAS
       ANDROID_KEY_PASSWORD:
         from_secret: ANDROID_KEY_PASSWORD
+    backend_options:
+      kubernetes:
+        resources:
+          requests:
+            memory: 2Gi
+            cpu: 500m
+          limits:
+            memory: 4Gi
 
   upload_debug:
     image: curlimages/curl:latest
@@ -144,6 +172,14 @@ steps:
         from_secret: GITHUB_TOKEN
       DRONE_REPO: ${DRONE_REPO}
       CI_COMMIT_SHA: ${CI_COMMIT_SHA}
+    backend_options:
+      kubernetes:
+        resources:
+          requests:
+            memory: 64Mi
+            cpu: 50m
+          limits:
+            memory: 128Mi
 
   upload_release:
     image: curlimages/curl:latest
@@ -189,3 +225,11 @@ steps:
         from_secret: GITHUB_TOKEN
       DRONE_REPO: ${DRONE_REPO}
       CI_COMMIT_TAG: ${CI_COMMIT_TAG}
+    backend_options:
+      kubernetes:
+        resources:
+          requests:
+            memory: 64Mi
+            cpu: 50m
+          limits:
+            memory: 128Mi
