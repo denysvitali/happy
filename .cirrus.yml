@@ -1,0 +1,180 @@
+# .cirrus.yml
+
+# Defaults mimic your GitHub Actions behavior:
+# - Push/PR: BUILD_TYPE defaults to "debug", APP_ENV defaults to "development"
+# - Manual release: override BUILD_TYPE to "release" or "both" (and set APP_ENV as needed)
+env:
+  NODE_VERSION: "20"
+  JAVA_VERSION: "17"
+  BUILD_TYPE: "debug"        # override to: release | both
+  APP_ENV: "development"     # override to: development | preview | production
+  GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx4g -XX:+HeapDumpOnOutOfMemoryError"'
+
+# Android SDK image (includes Android tooling; Node is installed in-task)
+container:
+  image: ghcr.io/cirruslabs/android-sdk:35
+  cpu: 4
+  memory: 12G
+
+# Cancel older runs when new commits arrive (similar intent to GitHub Actions concurrency cancel-in-progress)
+auto_cancellation: true
+
+# ------------------------
+# Cache templates (YAML anchors)
+# ------------------------
+yarn_cache: &yarn_cache
+  folder: ~/.cache/yarn
+  fingerprint_script:
+    - echo "$CIRRUS_OS"
+    - node --version
+    - cat yarn.lock
+
+node_modules_cache: &node_modules_cache
+  folder: node_modules
+  fingerprint_script:
+    - echo "$CIRRUS_OS"
+    - node --version
+    - cat yarn.lock
+
+expo_cache: &expo_cache
+  folders:
+    - .expo
+    - node_modules/.cache
+  fingerprint_script:
+    - echo "$CIRRUS_OS"
+    - node --version
+    - cat yarn.lock
+
+android_cache: &android_cache
+  folder: ~/.android
+  fingerprint_key: "android-${CIRRUS_OS}-sdk"
+
+gradle_cache: &gradle_cache
+  folders:
+    - ~/.gradle/caches
+    - ~/.gradle/wrapper
+    - android/.gradle
+  fingerprint_script:
+    - echo "$CIRRUS_OS"
+    - java -version || true
+    - |
+      if [ -d android ]; then
+        find android -type f ( -name "build.gradle" -o -name "build.gradle.kts" -o -name "gradle.properties" -o -name "settings.gradle*" ) \
+          -print | sort | xargs -r sha256sum
+      else
+        echo "no-android-dir-yet"
+      fi
+
+# ------------------------
+# Tasks
+# ------------------------
+
+typecheck_task:
+  only_if: $CIRRUS_PR != "" || $CIRRUS_BRANCH == "main"
+
+  yarn_cache:
+    <<: *yarn_cache
+  node_modules_cache:
+    <<: *node_modules_cache
+
+  script: |
+    set -euxo pipefail
+
+    apt-get update
+    apt-get install -y --no-install-recommends curl ca-certificates git
+
+    # Install Node.js 20.x
+    curl -fsSL "https://deb.nodesource.com/setup_${NODE_VERSION}.x" | bash -
+    apt-get install -y --no-install-recommends nodejs
+    corepack enable
+
+    yarn install --frozen-lockfile
+    npx expo customize tsconfig.json
+    yarn typecheck
+
+build_debug_task:
+  depends_on:
+    - typecheck_task
+
+  only_if: ($CIRRUS_PR != "" || $CIRRUS_BRANCH == "main") && ($BUILD_TYPE == "" || $BUILD_TYPE == "debug" || $BUILD_TYPE == "both")
+
+  yarn_cache:
+    <<: *yarn_cache
+  node_modules_cache:
+    <<: *node_modules_cache
+  expo_cache:
+    <<: *expo_cache
+  android_cache:
+    <<: *android_cache
+  gradle_cache:
+    <<: *gradle_cache
+
+  script: |
+    set -euxo pipefail
+
+    apt-get update
+    apt-get install -y --no-install-recommends curl ca-certificates git
+
+    curl -fsSL "https://deb.nodesource.com/setup_${NODE_VERSION}.x" | bash -
+    apt-get install -y --no-install-recommends nodejs
+    corepack enable
+
+    yarn install --frozen-lockfile
+    npx expo customize tsconfig.json
+
+    # Generate native project
+    APP_ENV="${APP_ENV:-development}" npx expo prebuild --platform android --no-install
+
+    # Build Debug APK
+    cd android
+    chmod +x ./gradlew
+    ./gradlew assembleDebug --no-daemon
+
+  debug_apk_artifacts:
+    path: android/app/build/outputs/apk/debug/*.apk
+
+build_release_task:
+  depends_on:
+    - typecheck_task
+
+  # Only when explicitly requested; also avoid running for PR builds.
+  only_if: ($BUILD_TYPE == "release" || $BUILD_TYPE == "both") && $CIRRUS_PR == ""
+
+  yarn_cache:
+    <<: *yarn_cache
+  node_modules_cache:
+    <<: *node_modules_cache
+  expo_cache:
+    <<: *expo_cache
+  android_cache:
+    <<: *android_cache
+  gradle_cache:
+    <<: *gradle_cache
+
+  script: |
+    set -euxo pipefail
+
+    apt-get update
+    apt-get install -y --no-install-recommends curl ca-certificates git
+
+    curl -fsSL "https://deb.nodesource.com/setup_${NODE_VERSION}.x" | bash -
+    apt-get install -y --no-install-recommends nodejs
+    corepack enable
+
+    yarn install --frozen-lockfile
+    npx expo customize tsconfig.json
+
+    # Generate native project
+    APP_ENV="${APP_ENV:-development}" npx expo prebuild --platform android --no-install
+
+    # Decode keystore if provided
+    if [ -n "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+      echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
+    fi
+
+    cd android
+    chmod +x ./gradlew
+    ./gradlew assembleRelease --no-daemon
+
+  release_apk_artifacts:
+    path: android/app/build/outputs/apk/release/*.apk
