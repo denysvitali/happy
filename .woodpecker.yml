@@ -39,9 +39,9 @@ steps:
     when:
       - evaluate: 'CI_PIPELINE_EVENT != "manual" || BUILD_TYPE == "" || BUILD_TYPE == "debug" || BUILD_TYPE == "both"'
     commands:
-      # Install Node.js (using n for faster installation than apt)
-      - npm install -g n
-      - n 20
+      # Install Node.js 20 from NodeSource
+      - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+      - apt-get install -y nodejs
       - corepack enable
 
       - export APP_ENV="${APP_ENV:-development}"
