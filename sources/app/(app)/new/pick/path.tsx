@@ -123,10 +123,10 @@ export default function PathPickerScreen() {
 
     const handleSelectPath = React.useCallback(() => {
         const pathToUse = customPath.trim() || machine?.metadata?.homeDir || '/home';
+        // Pass path back via navigation params (main's pattern, received by new/index.tsx)
         const state = navigation.getState();
-        if (!state) return;
-        const previousRoute = state.routes[state.index - 1];
-        if (previousRoute) {
+        const previousRoute = state?.routes?.[state.index - 1];
+        if (state && state.index > 0 && previousRoute) {
             navigation.dispatch({
                 ...CommonActions.setParams({ path: pathToUse }),
                 source: previousRoute.key,

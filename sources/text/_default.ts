@@ -34,6 +34,7 @@ export const en = {
         cancel: 'Cancel',
         authenticate: 'Authenticate',
         save: 'Save',
+        saveAs: 'Save As',
         error: 'Error',
         success: 'Success',
         ok: 'OK',
@@ -57,6 +58,8 @@ export const en = {
         fileViewer: 'File Viewer',
         loading: 'Loading...',
         retry: 'Retry',
+        delete: 'Delete',
+        optional: 'optional',
     },
 
     profile: {
@@ -130,6 +133,8 @@ export const en = {
         exchangingTokens: 'Exchanging tokens...',
         usage: 'Usage',
         usageSubtitle: 'View your API usage and costs',
+        profiles: 'Profiles',
+        profilesSubtitle: 'Manage environment variable profiles for sessions',
 
         // Dynamic settings messages
         accountConnected: ({ service }: { service: string }) => `${service} account connected`,
@@ -199,6 +204,9 @@ export const en = {
         markdownCopyV2Subtitle: 'Long press opens copy modal',
         hideInactiveSessions: 'Hide inactive sessions',
         hideInactiveSessionsSubtitle: 'Show only active chats in your list',
+        enhancedSessionWizard: 'Enhanced Session Wizard',
+        enhancedSessionWizardEnabled: 'Profile-first session launcher active',
+        enhancedSessionWizardDisabled: 'Using standard session launcher',
     },
 
     errors: {
@@ -410,15 +418,25 @@ export const en = {
             badgeSafeYolo: 'Safe YOLO',
             badgeYolo: 'YOLO',
         },
+        codexModel: {
+            title: 'CODEX MODEL',
+            gpt5CodexLow: 'gpt-5-codex low',
+            gpt5CodexMedium: 'gpt-5-codex medium',
+            gpt5CodexHigh: 'gpt-5-codex high',
+            gpt5Minimal: 'GPT-5 Minimal',
+            gpt5Low: 'GPT-5 Low',
+            gpt5Medium: 'GPT-5 Medium',
+            gpt5High: 'GPT-5 High',
+        },
         geminiPermissionMode: {
             title: 'GEMINI PERMISSION MODE',
             default: 'Default',
-            acceptEdits: 'Accept Edits',
-            plan: 'Plan Mode',
-            bypassPermissions: 'Yolo Mode',
-            badgeAcceptAllEdits: 'Accept All Edits',
-            badgeBypassAllPermissions: 'Bypass All Permissions',
-            badgePlanMode: 'Plan Mode',
+            readOnly: 'Read Only',
+            safeYolo: 'Safe YOLO',
+            yolo: 'YOLO',
+            badgeReadOnly: 'Read Only',
+            badgeSafeYolo: 'Safe YOLO',
+            badgeYolo: 'YOLO',
         },
         context: {
             remaining: ({ percent }: { percent: number }) => `${percent}% left`,
@@ -741,7 +759,7 @@ export const en = {
         permissions: {
             yesAllowAllEdits: 'Yes, allow all edits during this session',
             yesForTool: "Yes, don't ask again for this tool",
-            noTellClaude: 'No, and tell Claude what to do differently',
+            noTellClaude: 'No, and provide feedback',
         }
     },
 
@@ -862,6 +880,37 @@ export const en = {
         friendRequestGeneric: 'New friend request',
         friendAccepted: ({ name }: { name: string }) => `You are now friends with ${name}`,
         friendAcceptedGeneric: 'Friend request accepted',
+    },
+
+    profiles: {
+        // Profile management feature
+        title: 'Profiles',
+        subtitle: 'Manage environment variable profiles for sessions',
+        noProfile: 'No Profile',
+        noProfileDescription: 'Use default environment settings',
+        defaultModel: 'Default Model',
+        addProfile: 'Add Profile',
+        profileName: 'Profile Name',
+        enterName: 'Enter profile name',
+        baseURL: 'Base URL',
+        authToken: 'Auth Token',
+        enterToken: 'Enter auth token',
+        model: 'Model',
+        tmuxSession: 'Tmux Session',
+        enterTmuxSession: 'Enter tmux session name',
+        tmuxTempDir: 'Tmux Temp Directory',
+        enterTmuxTempDir: 'Enter temp directory path',
+        tmuxUpdateEnvironment: 'Update environment automatically',
+        nameRequired: 'Profile name is required',
+        deleteConfirm: 'Are you sure you want to delete the profile "{name}"?',
+        editProfile: 'Edit Profile',
+        addProfileTitle: 'Add New Profile',
+        delete: {
+            title: 'Delete Profile',
+            message: ({ name }: { name: string }) => `Are you sure you want to delete "${name}"? This action cannot be undone.`,
+            confirm: 'Delete',
+            cancel: 'Cancel',
+        },
     }
 } as const;
 
