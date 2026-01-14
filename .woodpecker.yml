@@ -1,9 +1,8 @@
 # .woodpecker.yml
 
-# Workflow-level gate: run ONLY on main, and ONLY for push/manual (no pull_request).
 when:
   branch: main
-  event: [push, manual]
+  event: [push, manual, tag]
 
 steps:
   deps:
@@ -12,30 +11,41 @@ steps:
       - corepack enable
       - yarn install --frozen-lockfile
       - npx expo customize tsconfig.json
-      # Default manual params (Woodpecker manual runs pass variables as env vars)
       - 'echo "BUILD_TYPE=${BUILD_TYPE:-both}  APP_ENV=${APP_ENV:-development}"'
     environment:
-      # Put yarn cache somewhere explicit (optional)
       YARN_CACHE_FOLDER: /tmp/yarn-cache
+    settings:
+      resources:
+        requests:
+          memory: 1Gi
+          cpu: "1"
+        limits:
+          memory: 2Gi
+          cpu: "2"
 
   typecheck:
     image: node:20-bullseye
     depends_on: [deps]
     commands:
       - yarn typecheck
+    settings:
+      resources:
+        requests:
+          memory: 512Mi
+          cpu: "1"
+        limits:
+          memory: 1Gi
+          cpu: "2"
 
   build_debug:
     image: ghcr.io/cirruslabs/android-sdk:34
     depends_on: [typecheck]
     when:
-      # Run on push OR manual with debug/both (default to both if unset)
       - evaluate: 'CI_PIPELINE_EVENT != "manual" || BUILD_TYPE == "" || BUILD_TYPE == "debug" || BUILD_TYPE == "both"'
     commands:
-      # Ensure Node 20 exists in the Android image (optimize by using a custom pre-baked image)
-      - apt-get update
-      - apt-get install -y --no-install-recommends curl ca-certificates git
-      - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-      - apt-get install -y --no-install-recommends nodejs
+      # Install Node.js (using n for faster installation than apt)
+      - npm install -g n
+      - n 20
       - corepack enable
 
       - export APP_ENV="${APP_ENV:-development}"
@@ -46,23 +56,29 @@ steps:
       - ./gradlew assembleDebug --no-daemon
       - ls -lah app/build/outputs/apk/debug || true
     environment:
-      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx4g -XX:+HeapDumpOnOutOfMemoryError"'
-      # Keeps gradle stuff inside the workspace (helps within a single run; for cross-run cache use volumes)
+      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx3g -XX:+HeapDumpOnOutOfMemoryError"'
       GRADLE_USER_HOME: .gradle
+    settings:
+      resources:
+        requests:
+          memory: 3Gi
+          cpu: "2"
+        limits:
+          memory: 5Gi
+          cpu: "4"
 
   build_release:
     image: ghcr.io/cirruslabs/android-sdk:34
     depends_on: [typecheck]
     when:
-      - evaluate: 'CI_PIPELINE_EVENT == "manual" && (BUILD_TYPE == "release" || BUILD_TYPE == "both")'
+      - evaluate: '(CI_PIPELINE_EVENT == "manual" || CI_PIPELINE_EVENT == "tag") && (BUILD_TYPE == "release" || BUILD_TYPE == "both")'
     commands:
-      - apt-get update
-      - apt-get install -y --no-install-recommends curl ca-certificates git
-      - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-      - apt-get install -y --no-install-recommends nodejs
+      - npm install -g n
+      - n 20
       - corepack enable
 
-      - export APP_ENV="${APP_ENV:-development}"
+      # Use production env for releases (especially tags)
+      - export APP_ENV="${APP_ENV:-production}"
 
       - CI=true npx expo prebuild --platform android --no-install
 
@@ -76,7 +92,7 @@ steps:
       - ./gradlew assembleRelease --no-daemon
       - ls -lah app/build/outputs/apk/release || true
     environment:
-      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx4g -XX:+HeapDumpOnOutOfMemoryError"'
+      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx3g -XX:+HeapDumpOnOutOfMemoryError"'
       GRADLE_USER_HOME: .gradle
 
       ANDROID_KEYSTORE_BASE64:
@@ -87,3 +103,137 @@ steps:
         from_secret: ANDROID_KEY_ALIAS
       ANDROID_KEY_PASSWORD:
         from_secret: ANDROID_KEY_PASSWORD
+    settings:
+      resources:
+        requests:
+          memory: 3Gi
+          cpu: "2"
+        limits:
+          memory: 5Gi
+          cpu: "4"
+
+  upload_debug:
+    image: curlimages/curl:latest
+    depends_on: [build_debug]
+    when:
+      event: [push, manual]
+    commands:
+      - |
+        # Check if "CI Builds" release exists, create if not
+        RESPONSE=$(curl -s -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "https://api.github.com/repos/${DRONE_REPO}/releases")
+
+        RELEASE_ID=$(echo "$RESPONSE" | grep -o '"id": [0-9]*' | grep -v 'draft\|prerelease' | head -1 | grep -o '[0-9]*')
+
+        if [ -z "$RELEASE_ID" ]; then
+          # Create new release for CI builds
+          echo "Creating CI Builds release..."
+          CREATE_RESPONSE=$(curl -s -L -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -d '{"tag_name":"ci-builds","name":"CI Builds","draft":false,"prerelease":true}' \
+            "https://api.github.com/repos/${DRONE_REPO}/releases")
+          RELEASE_ID=$(echo "$CREATE_RESPONSE" | grep -o '"id": [0-9]*' | head -1 | grep -o '[0-9]*')
+        fi
+
+        # Get upload_url for this release
+        RESPONSE=$(curl -s -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "https://api.github.com/repos/${DRONE_REPO}/releases/${RELEASE_ID}")
+        UPLOAD_URL=$(echo "$RESPONSE" | grep -o '"upload_url": "[^"]*"' | sed 's/"upload_url": "\(.*\){\/name.*}/\1/')
+
+        # Delete old debug APK if exists
+        ASSETS=$(curl -s -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "https://api.github.com/repos/${DRONE_REPO}/releases/${RELEASE_ID}/assets")
+        OLD_DEBUG=$(echo "$ASSETS" | grep -o '"name": "happy-debug[^"]*"' | grep -o 'happy-debug[^"]*')
+        if [ -n "$OLD_DEBUG" ]; then
+          ASSET_ID=$(echo "$ASSETS" | grep -B1 "$OLD_DEBUG" | grep -o '"id": [0-9]*' | grep -o '[0-9]*')
+          curl -s -L -X DELETE \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            "https://api.github.com/repos/${DRONE_REPO}/releases/assets/${ASSET_ID}"
+        fi
+
+        # Upload new debug APK
+        if [ -f android/app/build/outputs/apk/debug/app-debug.apk ]; then
+          echo "Uploading debug APK..."
+          curl -s -L -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Content-Type: application/vnd.android.package-archive" \
+            "${UPLOAD_URL}?name=happy-debug-${CI_COMMIT_SHA:0:7}.apk" \
+            --data-binary @android/app/build/outputs/apk/debug/app-debug.apk
+          echo "Debug APK uploaded"
+        fi
+    environment:
+      GITHUB_TOKEN:
+        from_secret: GITHUB_TOKEN
+      DRONE_REPO: ${DRONE_REPO}
+      CI_COMMIT_SHA: ${CI_COMMIT_SHA}
+    settings:
+      resources:
+        requests:
+          memory: 128Mi
+          cpu: "100m"
+        limits:
+          memory: 256Mi
+          cpu: "500m"
+
+  upload_release:
+    image: curlimages/curl:latest
+    depends_on: [build_debug, build_release]
+    when:
+      event: tag
+    commands:
+      - |
+        # Get release info for this tag
+        RESPONSE=$(curl -s -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "https://api.github.com/repos/${DRONE_REPO}/releases/tags/${CI_COMMIT_TAG}")
+
+        # Extract upload_url (remove the {/name,...} suffix)
+        UPLOAD_URL=$(echo "$RESPONSE" | grep -o '"upload_url": "[^"]*"' | sed 's/"upload_url": "\(.*\){\/name.*}/\1/')
+
+        # Upload debug APK
+        if [ -f android/app/build/outputs/apk/debug/app-debug.apk ]; then
+          echo "Uploading debug APK..."
+          curl -s -L -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Content-Type: application/vnd.android.package-archive" \
+            "${UPLOAD_URL}?name=happy-debug.apk" \
+            --data-binary @android/app/build/outputs/apk/debug/app-debug.apk
+          echo "Debug APK uploaded"
+        fi
+
+        # Upload release APK
+        if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
+          echo "Uploading release APK..."
+          curl -s -L -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Content-Type: application/vnd.android.package-archive" \
+            "${UPLOAD_URL}?name=happy-release.apk" \
+            --data-binary @android/app/build/outputs/apk/release/app-release.apk
+          echo "Release APK uploaded"
+        fi
+    environment:
+      GITHUB_TOKEN:
+        from_secret: GITHUB_TOKEN
+      DRONE_REPO: ${DRONE_REPO}
+      CI_COMMIT_TAG: ${CI_COMMIT_TAG}
+    settings:
+      resources:
+        requests:
+          memory: 128Mi
+          cpu: "100m"
+        limits:
+          memory: 256Mi
+          cpu: "500m"
