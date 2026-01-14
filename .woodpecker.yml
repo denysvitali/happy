@@ -40,7 +40,7 @@ steps:
 
       - export APP_ENV="${APP_ENV:-development}"
 
-      - npx expo prebuild --platform android --no-install
+      - CI=true npx expo prebuild --platform android --no-install
       - cd android
       - chmod +x ./gradlew
       - ./gradlew assembleDebug --no-daemon
@@ -64,7 +64,7 @@ steps:
 
       - export APP_ENV="${APP_ENV:-development}"
 
-      - npx expo prebuild --platform android --no-install
+      - CI=true npx expo prebuild --platform android --no-install
 
       - |
         if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
