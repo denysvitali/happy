@@ -44,7 +44,6 @@ steps:
       - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
       - apt-get install -y nodejs
       - corepack enable
-      - export APP_ENV="production"
       - CI=true npx expo customize tsconfig.json
       - CI=true npx expo prebuild --platform android --no-install
       - cd android
@@ -52,6 +51,7 @@ steps:
       - CI=true ./gradlew assembleDebug --no-daemon --max-workers=4
       - ls -lah app/build/outputs/apk/debug || true
     environment:
+      APP_ENV: "production"
       # No nested quotes; pass args directly
       GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx6g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC"
       GRADLE_USER_HOME: .gradle
@@ -77,7 +77,6 @@ steps:
       - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
       - apt-get install -y nodejs
       - corepack enable
-      - export APP_ENV="production"
       - CI=true npx expo customize tsconfig.json
       - CI=true npx expo prebuild --platform android --no-install
       - |
@@ -90,6 +89,7 @@ steps:
       - CI=true ./gradlew assembleRelease --no-daemon --max-workers=4
       - ls -lah app/build/outputs/apk/release || true
     environment:
+      APP_ENV: "production"
       # No nested quotes; pass args directly
       GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx6g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC"
       GRADLE_USER_HOME: .gradle
