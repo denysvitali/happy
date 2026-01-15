@@ -52,13 +52,13 @@ steps:
       - ./gradlew assembleDebug --no-daemon
       - ls -lah app/build/outputs/apk/debug || true
     environment:
-      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx3g -XX:+HeapDumpOnOutOfMemoryError"'
+      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx4g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC"'
       GRADLE_USER_HOME: .gradle
     backend_options:
       kubernetes:
         resources:
           requests:
-            memory: 4Gi
+            memory: 8Gi
             cpu: "2"
           limits:
             memory: 16Gi
