@@ -11,8 +11,6 @@ steps:
       - corepack enable
       - yarn install --frozen-lockfile --immutable
       - npx expo customize tsconfig.json
-    volumes:
-      - modules-cache:/woodpecker/src/github.com/denysvitali/happy/node_modules
     backend_options:
       kubernetes:
         resources:
@@ -25,8 +23,6 @@ steps:
     depends_on: [deps]
     commands:
       - yarn typecheck
-    volumes:
-      - modules-cache:/woodpecker/src/github.com/denysvitali/happy/node_modules
     backend_options:
       kubernetes:
         resources:
@@ -54,8 +50,6 @@ steps:
       # No nested quotes; pass args directly
       GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx6g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC"
       GRADLE_USER_HOME: .gradle
-    volumes:
-      - modules-cache:/woodpecker/src/github.com/denysvitali/happy/node_modules
     backend_options:
       kubernetes:
         resources:
@@ -99,8 +93,6 @@ steps:
         from_secret: ANDROID_KEY_ALIAS
       ANDROID_KEY_PASSWORD:
         from_secret: ANDROID_KEY_PASSWORD
-    volumes:
-      - modules-cache:/woodpecker/src/github.com/denysvitali/happy/node_modules
     backend_options:
       kubernetes:
         resources:
