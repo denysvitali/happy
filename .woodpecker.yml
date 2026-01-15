@@ -55,6 +55,8 @@ steps:
       # No nested quotes; pass args directly
       GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx6g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC"
       GRADLE_USER_HOME: .gradle
+    volumes:
+      - woodpecker-gradle-cache:/woodpecker/src/github.com/dvitali/happy/android/.gradle
     backend_options:
       kubernetes:
         resources:
@@ -91,6 +93,8 @@ steps:
       # No nested quotes; pass args directly
       GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx6g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC"
       GRADLE_USER_HOME: .gradle
+    volumes:
+      - woodpecker-gradle-cache:/woodpecker/src/github.com/dvitali/happy/android/.gradle
 
       ANDROID_KEYSTORE_BASE64:
         from_secret: ANDROID_KEYSTORE_BASE64
