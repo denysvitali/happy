@@ -44,7 +44,7 @@ steps:
     depends_on: [deps]
     commands:
       - apt-get update && apt-get install -y --no-install-recommends wget
-       - wget -qO- https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs && CI=true npx expo prebuild --platform android --no-install
+      - wget -qO- https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs && CI=true npx expo prebuild --platform android --no-install
       - cd android
       - chmod +x ./gradlew
       - CI=true ./gradlew assembleDebug --no-daemon --max-workers=4
@@ -76,7 +76,7 @@ steps:
     commands:
       - apt-get update && apt-get install -y --no-install-recommends wget
       - |
-         wget -qO- https://deb.nodesource.com/setup_20.x | bash -
+        wget -qO- https://deb.nodesource.com/setup_20.x | bash -
         apt-get install -y nodejs
         if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
           echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
