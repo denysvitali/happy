@@ -56,7 +56,6 @@ steps:
       GRADLE_USER_HOME: .gradle
     volumes:
       - modules-cache:/woodpecker/src/github.com/denysvitali/happy/node_modules
-      - woodpecker-gradle-cache:/woodpecker/src/github.com/denysvitali/happy/android/.gradle
     backend_options:
       kubernetes:
         resources:
@@ -102,7 +101,6 @@ steps:
         from_secret: ANDROID_KEY_PASSWORD
     volumes:
       - modules-cache:/woodpecker/src/github.com/denysvitali/happy/node_modules
-      - woodpecker-gradle-cache:/woodpecker/src/github.com/denysvitali/happy/android/.gradle
     backend_options:
       kubernetes:
         resources:
