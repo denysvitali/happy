@@ -38,7 +38,6 @@ steps:
   # BUILD_TYPE=both (default) runs both, debug/release runs only that variant.
   build_debug:
     image: ghcr.io/cirruslabs/android-sdk:34
-    depends_on: [typecheck]
     when:
       - evaluate: 'BUILD_TYPE == "" || BUILD_TYPE == "debug" || BUILD_TYPE == "both" || BUILD_TYPE == null'
     commands:
@@ -50,9 +49,10 @@ steps:
       - CI=true npx expo prebuild --platform android --no-install
       - cd android
       - chmod +x ./gradlew
-      - ./gradlew assembleDebug --no-daemon --max-workers=4
+      - CI=true ./gradlew assembleDebug --no-daemon --max-workers=4
       - ls -lah app/build/outputs/apk/debug || true
     environment:
+      CI: "true"
       # No nested quotes; pass args directly
       GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx6g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC"
       GRADLE_USER_HOME: .gradle
@@ -70,7 +70,6 @@ steps:
 
   build_release:
     image: ghcr.io/cirruslabs/android-sdk:34
-    depends_on: [typecheck]
     when:
       - evaluate: 'BUILD_TYPE == "release" || BUILD_TYPE == "both" || BUILD_TYPE == null'
     commands:
@@ -79,7 +78,7 @@ steps:
       - corepack enable
       - export APP_ENV="production"
       - npx expo customize tsconfig.json
-      - CI=true npx expo prebuild --platform android --no-install
+      - npx expo prebuild --platform android --no-install
       - |
         if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
           echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
@@ -90,6 +89,7 @@ steps:
       - ./gradlew assembleRelease --no-daemon --max-workers=4
       - ls -lah app/build/outputs/apk/release || true
     environment:
+      CI: "true"
       # No nested quotes; pass args directly
       GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx6g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC"
       GRADLE_USER_HOME: .gradle
