@@ -9,11 +9,10 @@ steps:
     image: node:20-bullseye
     commands:
       - corepack enable
-      - yarn install --frozen-lockfile
+      - yarn install --frozen-lockfile --immutable
       - npx expo customize tsconfig.json
-      - 'echo "BUILD_TYPE=${BUILD_TYPE:-both}  APP_ENV=production"'
-    environment:
-      YARN_CACHE_FOLDER: /tmp/yarn-cache
+    volumes:
+      - modules-cache:/app/node_modules
     backend_options:
       kubernetes:
         resources:
@@ -26,6 +25,8 @@ steps:
     depends_on: [deps]
     commands:
       - yarn typecheck
+    volumes:
+      - modules-cache:/app/node_modules
     backend_options:
       kubernetes:
         resources:
@@ -33,19 +34,15 @@ steps:
             memory: 256Mi
             cpu: 100m
 
-  # Note: Both build_debug and build_release depend only on typecheck,
-  # so they can run concurrently. Use BUILD_TYPE env var to control which builds run.
+  # Note: Both build_debug and build_release depend on deps for node_modules,
+  # then run concurrently. Use BUILD_TYPE env var to control which builds run.
   # BUILD_TYPE=both (default) runs both, debug/release runs only that variant.
   build_debug:
     image: ghcr.io/cirruslabs/android-sdk:34
     when:
       - evaluate: 'BUILD_TYPE == "" || BUILD_TYPE == "debug" || BUILD_TYPE == "both" || BUILD_TYPE == null'
+    depends_on: [deps]
     commands:
-      - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-      - apt-get install -y nodejs
-      - corepack enable
-      - yarn install --frozen-lockfile
-      - CI=true npx expo customize tsconfig.json
       - CI=true npx expo prebuild --platform android --no-install
       - cd android
       - chmod +x ./gradlew
@@ -57,6 +54,7 @@ steps:
       GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx6g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC"
       GRADLE_USER_HOME: .gradle
     volumes:
+      - modules-cache:/app/node_modules
       - woodpecker-gradle-cache:/woodpecker/src/github.com/dvitali/happy/android/.gradle
     backend_options:
       kubernetes:
@@ -74,18 +72,14 @@ steps:
     image: ghcr.io/cirruslabs/android-sdk:34
     when:
       - evaluate: 'BUILD_TYPE == "release" || BUILD_TYPE == "both" || BUILD_TYPE == null'
+    depends_on: [deps]
     commands:
-      - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-      - apt-get install -y nodejs
-      - corepack enable
-      - yarn install --frozen-lockfile
-      - CI=true npx expo customize tsconfig.json
-      - CI=true npx expo prebuild --platform android --no-install
       - |
         if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
           echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
         fi
 
+      - CI=true npx expo prebuild --platform android --no-install
       - cd android
       - chmod +x ./gradlew
       - CI=true ./gradlew assembleRelease --no-daemon --max-workers=4
@@ -104,6 +98,7 @@ steps:
       ANDROID_KEY_PASSWORD:
         from_secret: ANDROID_KEY_PASSWORD
     volumes:
+      - modules-cache:/app/node_modules
       - woodpecker-gradle-cache:/woodpecker/src/github.com/dvitali/happy/android/.gradle
     backend_options:
       kubernetes:
