@@ -61,7 +61,7 @@ steps:
             memory: 8Gi
             cpu: "2"
           limits:
-            memory: 16Gi
+            memory: 32Gi
 
   build_release:
     image: ghcr.io/cirruslabs/android-sdk:34
