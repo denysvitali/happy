@@ -39,20 +39,18 @@ steps:
     when:
       - evaluate: 'CI_PIPELINE_EVENT != "manual" || BUILD_TYPE == "" || BUILD_TYPE == "debug" || BUILD_TYPE == "both"'
     commands:
-      # Install Node.js 20 from NodeSource
       - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
       - apt-get install -y nodejs
       - corepack enable
-
       - export APP_ENV="${APP_ENV:-development}"
-
       - CI=true npx expo prebuild --platform android --no-install
       - cd android
       - chmod +x ./gradlew
-      - ./gradlew assembleDebug --no-daemon
+      - ./gradlew assembleDebug --no-daemon --max-workers=2
       - ls -lah app/build/outputs/apk/debug || true
     environment:
-      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx4g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC"'
+      # No nested quotes; pass args directly
+      GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx6g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC"
       GRADLE_USER_HOME: .gradle
     backend_options:
       kubernetes:
@@ -60,9 +58,11 @@ steps:
           requests:
             memory: 8Gi
             cpu: "2"
+            ephemeral-storage: 30Gi
           limits:
-            memory: 32Gi
-
+            memory: 16Gi
+            cpu: "4"
+            ephemeral-storage: 30Gi
   build_release:
     image: ghcr.io/cirruslabs/android-sdk:34
     depends_on: [typecheck]
