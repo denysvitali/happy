@@ -58,10 +58,10 @@ steps:
       kubernetes:
         resources:
           requests:
-            memory: 2Gi
-            cpu: 500m
-          limits:
             memory: 4Gi
+            cpu: "2"
+          limits:
+            memory: 16Gi
 
   build_release:
     image: ghcr.io/cirruslabs/android-sdk:34
