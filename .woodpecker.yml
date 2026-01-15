@@ -45,14 +45,13 @@ steps:
       - apt-get install -y nodejs
       - corepack enable
       - export APP_ENV="production"
-      - npx expo customize tsconfig.json
+      - CI=true npx expo customize tsconfig.json
       - CI=true npx expo prebuild --platform android --no-install
       - cd android
       - chmod +x ./gradlew
       - CI=true ./gradlew assembleDebug --no-daemon --max-workers=4
       - ls -lah app/build/outputs/apk/debug || true
     environment:
-      CI: "true"
       # No nested quotes; pass args directly
       GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx6g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC"
       GRADLE_USER_HOME: .gradle
@@ -77,8 +76,8 @@ steps:
       - apt-get install -y nodejs
       - corepack enable
       - export APP_ENV="production"
-      - npx expo customize tsconfig.json
-      - npx expo prebuild --platform android --no-install
+      - CI=true npx expo customize tsconfig.json
+      - CI=true npx expo prebuild --platform android --no-install
       - |
         if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
           echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
@@ -86,10 +85,9 @@ steps:
 
       - cd android
       - chmod +x ./gradlew
-      - ./gradlew assembleRelease --no-daemon --max-workers=4
+      - CI=true ./gradlew assembleRelease --no-daemon --max-workers=4
       - ls -lah app/build/outputs/apk/release || true
     environment:
-      CI: "true"
       # No nested quotes; pass args directly
       GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx6g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC"
       GRADLE_USER_HOME: .gradle
