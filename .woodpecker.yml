@@ -44,6 +44,7 @@ steps:
       - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
       - apt-get install -y nodejs
       - corepack enable
+      - yarn install --frozen-lockfile
       - CI=true npx expo customize tsconfig.json
       - CI=true npx expo prebuild --platform android --no-install
       - cd android
@@ -77,6 +78,7 @@ steps:
       - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
       - apt-get install -y nodejs
       - corepack enable
+      - yarn install --frozen-lockfile
       - CI=true npx expo customize tsconfig.json
       - CI=true npx expo prebuild --platform android --no-install
       - |
