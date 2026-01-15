@@ -93,9 +93,6 @@ steps:
       # No nested quotes; pass args directly
       GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx6g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC"
       GRADLE_USER_HOME: .gradle
-    volumes:
-      - woodpecker-gradle-cache:/woodpecker/src/github.com/dvitali/happy/android/.gradle
-
       ANDROID_KEYSTORE_BASE64:
         from_secret: ANDROID_KEYSTORE_BASE64
       ANDROID_KEYSTORE_PASSWORD:
@@ -104,6 +101,8 @@ steps:
         from_secret: ANDROID_KEY_ALIAS
       ANDROID_KEY_PASSWORD:
         from_secret: ANDROID_KEY_PASSWORD
+    volumes:
+      - woodpecker-gradle-cache:/woodpecker/src/github.com/dvitali/happy/android/.gradle
     backend_options:
       kubernetes:
         resources:
