@@ -12,7 +12,7 @@ steps:
       - yarn install --frozen-lockfile --immutable
       - npx expo customize tsconfig.json
     volumes:
-      - modules-cache:/app/node_modules
+      - modules-cache:/woodpecker/src/github.com/denysvitali/happy/node_modules
     backend_options:
       kubernetes:
         resources:
@@ -26,7 +26,7 @@ steps:
     commands:
       - yarn typecheck
     volumes:
-      - modules-cache:/app/node_modules
+      - modules-cache:/woodpecker/src/github.com/denysvitali/happy/node_modules
     backend_options:
       kubernetes:
         resources:
@@ -43,6 +43,9 @@ steps:
       - evaluate: 'BUILD_TYPE == "" || BUILD_TYPE == "debug" || BUILD_TYPE == "both" || BUILD_TYPE == null'
     depends_on: [deps]
     commands:
+      - apt-get update && apt-get install -y --no-install-recommends wget
+      - wget -qO- https://deb.nodesource.com/setup_24.x | bash -
+      - apt-get install -y nodejs
       - CI=true npx expo prebuild --platform android --no-install
       - cd android
       - chmod +x ./gradlew
@@ -54,8 +57,8 @@ steps:
       GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx6g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC"
       GRADLE_USER_HOME: .gradle
     volumes:
-      - modules-cache:/app/node_modules
-      - woodpecker-gradle-cache:/woodpecker/src/github.com/dvitali/happy/android/.gradle
+      - modules-cache:/woodpecker/src/github.com/denysvitali/happy/node_modules
+      - woodpecker-gradle-cache:/woodpecker/src/github.com/denysvitali/happy/android/.gradle
     backend_options:
       kubernetes:
         resources:
@@ -74,6 +77,9 @@ steps:
       - evaluate: 'BUILD_TYPE == "release" || BUILD_TYPE == "both" || BUILD_TYPE == null'
     depends_on: [deps]
     commands:
+      - apt-get update && apt-get install -y --no-install-recommends wget
+      - wget -qO- https://deb.nodesource.com/setup_24.x | bash -
+      - apt-get install -y nodejs
       - |
         if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
           echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
@@ -98,8 +104,8 @@ steps:
       ANDROID_KEY_PASSWORD:
         from_secret: ANDROID_KEY_PASSWORD
     volumes:
-      - modules-cache:/app/node_modules
-      - woodpecker-gradle-cache:/woodpecker/src/github.com/dvitali/happy/android/.gradle
+      - modules-cache:/woodpecker/src/github.com/denysvitali/happy/node_modules
+      - woodpecker-gradle-cache:/woodpecker/src/github.com/denysvitali/happy/android/.gradle
     backend_options:
       kubernetes:
         resources:
