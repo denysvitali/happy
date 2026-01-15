@@ -11,7 +11,7 @@ steps:
       - corepack enable
       - yarn install --frozen-lockfile
       - npx expo customize tsconfig.json
-      - 'echo "BUILD_TYPE=${BUILD_TYPE:-both}  APP_ENV=${APP_ENV:-development}"'
+      - 'echo "BUILD_TYPE=${BUILD_TYPE:-both}  APP_ENV=production"'
     environment:
       YARN_CACHE_FOLDER: /tmp/yarn-cache
     backend_options:
@@ -33,20 +33,23 @@ steps:
             memory: 256Mi
             cpu: 100m
 
+  # Note: Both build_debug and build_release depend only on typecheck,
+  # so they can run concurrently. Use BUILD_TYPE env var to control which builds run.
+  # BUILD_TYPE=both (default) runs both, debug/release runs only that variant.
   build_debug:
     image: ghcr.io/cirruslabs/android-sdk:34
     depends_on: [typecheck]
     when:
-      - evaluate: 'CI_PIPELINE_EVENT != "manual" || BUILD_TYPE == "" || BUILD_TYPE == "debug" || BUILD_TYPE == "both"'
+      - evaluate: 'BUILD_TYPE == "" || BUILD_TYPE == "debug" || BUILD_TYPE == "both" || BUILD_TYPE == null'
     commands:
       - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
       - apt-get install -y nodejs
       - corepack enable
-      - export APP_ENV="${APP_ENV:-development}"
+      - export APP_ENV="production"
       - CI=true npx expo prebuild --platform android --no-install
       - cd android
       - chmod +x ./gradlew
-      - ./gradlew assembleDebug --no-daemon --max-workers=2
+      - ./gradlew assembleDebug --no-daemon --max-workers=4
       - ls -lah app/build/outputs/apk/debug || true
     environment:
       # No nested quotes; pass args directly
@@ -56,26 +59,24 @@ steps:
       kubernetes:
         resources:
           requests:
-            memory: 8Gi
+            memory: 12Gi
             cpu: "2"
             ephemeral-storage: 30Gi
           limits:
             memory: 16Gi
             cpu: "4"
             ephemeral-storage: 30Gi
+
   build_release:
     image: ghcr.io/cirruslabs/android-sdk:34
     depends_on: [typecheck]
     when:
-      - evaluate: '(CI_PIPELINE_EVENT == "manual" || CI_PIPELINE_EVENT == "tag") && (BUILD_TYPE == "release" || BUILD_TYPE == "both")'
+      - evaluate: 'BUILD_TYPE == "release" || BUILD_TYPE == "both" || BUILD_TYPE == null'
     commands:
-      - npm install -g n
-      - n 20
+      - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+      - apt-get install -y nodejs
       - corepack enable
-
-      # Use production env for releases (especially tags)
-      - export APP_ENV="${APP_ENV:-production}"
-
+      - export APP_ENV="production"
       - CI=true npx expo prebuild --platform android --no-install
 
       - |
@@ -85,10 +86,11 @@ steps:
 
       - cd android
       - chmod +x ./gradlew
-      - ./gradlew assembleRelease --no-daemon
+      - ./gradlew assembleRelease --no-daemon --max-workers=4
       - ls -lah app/build/outputs/apk/release || true
     environment:
-      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx3g -XX:+HeapDumpOnOutOfMemoryError"'
+      # No nested quotes; pass args directly
+      GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx6g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC"
       GRADLE_USER_HOME: .gradle
 
       ANDROID_KEYSTORE_BASE64:
@@ -103,10 +105,13 @@ steps:
       kubernetes:
         resources:
           requests:
-            memory: 2Gi
-            cpu: 500m
+            memory: 12Gi
+            cpu: "2"
+            ephemeral-storage: 30Gi
           limits:
-            memory: 4Gi
+            memory: 16Gi
+            cpu: "4"
+            ephemeral-storage: 30Gi
 
   upload_debug:
     image: curlimages/curl:latest
@@ -233,3 +238,37 @@ steps:
             cpu: 50m
           limits:
             memory: 128Mi
+
+  upload_debug_s3:
+    image: docker.io/woodpeckerci/plugin-s3
+    depends_on: [build_debug]
+    when:
+      event: [push, manual]
+    settings:
+      bucket: denvit-happy-builds
+      endpoint: https://s3.eu-central-003.backblazeb2.com
+      path_style: true
+      region: eu-central-003
+      source: android/app/build/outputs/apk/debug/*.apk
+      target: /happy/debug/${CI_COMMIT_UNIX_TIMESTAMP}
+      access_key:
+        from_secret: B2_KEY_ID
+      secret_key:
+        from_secret: B2_APPLICATION_KEY
+
+  upload_release_s3:
+    image: docker.io/woodpeckerci/plugin-s3
+    depends_on: [build_release]
+    when:
+      event: tag
+    settings:
+      bucket: denvit-happy-builds
+      endpoint: https://s3.eu-central-003.backblazeb2.com
+      path_style: true
+      region: eu-central-003
+      source: android/app/build/outputs/apk/release/*.apk
+      target: /happy/release/${CI_COMMIT_UNIX_TIMESTAMP}
+      access_key:
+        from_secret: B2_KEY_ID
+      secret_key:
+        from_secret: B2_APPLICATION_KEY
