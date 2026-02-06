@@ -10,7 +10,6 @@ web-build/
 expo-env.d.ts
 /ios
 /android
-packages/*/dist/
 
 # Native
 .kotlin/
@@ -46,7 +45,6 @@ yarn-error.*
 CLAUDE.local.md
 
 .dev/worktree/*
-.project/
 
 # Development planning notes (keep local, don't commit)
 notes/

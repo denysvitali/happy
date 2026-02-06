@@ -1,18 +1,14 @@
 {
     "name": "monorepo",
     "private": true,
-    "scripts": {
-        "build:packages": "yarn workspace @happy/agents build && yarn workspace @happy/protocol build",
-        "ci:act": "bash scripts/ci/run-act-tests.sh",
-        "test": "yarn --cwd expo-app test && yarn --cwd cli test && yarn --cwd server test",
-        "typecheck": "yarn --cwd expo-app typecheck && yarn --cwd cli typecheck && yarn --cwd server build"
-    },
     "workspaces": {
         "packages": [
-            "expo-app",
-            "packages/*"
+            "packages/happy-app",
+            "packages/happy-cli",
+            "packages/happy-server"
         ],
         "nohoist": [
+            "**/zod",
             "**/react",
             "**/react-dom",
             "**/react-native",
@@ -20,9 +16,6 @@
             "**/react-native-edge-to-edge/**",
             "**/react-native-incall-manager/**"
         ]
-    },
-    "resolutions": {
-        "expo-router": "6.0.22"
     },
     "packageManager": "yarn@1.22.22"
 }
