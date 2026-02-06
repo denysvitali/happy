@@ -123,6 +123,7 @@ describe('settings', () => {
                 favoriteDirectories: [],
                 favoriteMachines: [],
                 dismissedCLIWarnings: { perMachine: {}, global: {} },
+                recentModels: [],
             };
             const delta: Partial<Settings> = {
                 viewInline: true
@@ -157,6 +158,7 @@ describe('settings', () => {
                 favoriteDirectories: [],
                 favoriteMachines: [],
                 dismissedCLIWarnings: { perMachine: {}, global: {} },
+                recentModels: [],
             });
         });
 
@@ -191,6 +193,7 @@ describe('settings', () => {
                 favoriteDirectories: [],
                 favoriteMachines: [],
                 dismissedCLIWarnings: { perMachine: {}, global: {} },
+                recentModels: [],
             };
             const delta: Partial<Settings> = {};
             expect(applySettings(currentSettings, delta)).toEqual(currentSettings);
@@ -227,6 +230,7 @@ describe('settings', () => {
                 favoriteDirectories: [],
                 favoriteMachines: [],
                 dismissedCLIWarnings: { perMachine: {}, global: {} },
+                recentModels: [],
             };
             const delta: Partial<Settings> = {
                 viewInline: false
@@ -268,6 +272,7 @@ describe('settings', () => {
                 favoriteDirectories: [],
                 favoriteMachines: [],
                 dismissedCLIWarnings: { perMachine: {}, global: {} },
+                recentModels: [],
             };
             expect(applySettings(currentSettings, {})).toEqual(currentSettings);
         });
@@ -318,6 +323,7 @@ describe('settings', () => {
                 favoriteDirectories: [],
                 favoriteMachines: [],
                 dismissedCLIWarnings: { perMachine: {}, global: {} },
+                recentModels: [],
             };
             const delta: any = {
                 viewInline: false,
@@ -380,6 +386,7 @@ describe('settings', () => {
                 favoriteMachines: [],
                 dismissedCLIWarnings: { perMachine: {}, global: {} },
                 useEnhancedSessionWizard: false,
+                recentModels: [],
             });
         });
 
