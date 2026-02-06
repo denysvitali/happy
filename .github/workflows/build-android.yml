@@ -51,11 +51,11 @@ jobs:
           cache: 'yarn'
 
       - name: Install dependencies
-        working-directory: expo-app
+        working-directory: packages/happy-app
         run: yarn install --frozen-lockfile
 
       - name: Run typecheck
-        working-directory: expo-app
+        working-directory: packages/happy-app
         run: yarn typecheck
 
   # Prebuild job - generates native Android project, shared by all ABI builds
@@ -79,7 +79,7 @@ jobs:
           cache: 'yarn'
 
       - name: Install dependencies
-        working-directory: expo-app
+        working-directory: packages/happy-app
         run: yarn install --frozen-lockfile
 
       - name: Determine APP_ENV
@@ -92,7 +92,7 @@ jobs:
           fi
 
       - name: Generate native Android project
-        working-directory: expo-app
+        working-directory: packages/happy-app
         run: npx expo prebuild --platform android --no-install
         env:
           APP_ENV: ${{ steps.env.outputs.APP_ENV }}
@@ -101,7 +101,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-prebuild
-          path: expo-app/android
+          path: packages/happy-app/android
           retention-days: 1
 
   # Parallel release builds - one per ABI (standalone APKs with bundled JS)
@@ -130,7 +130,7 @@ jobs:
           cache: 'yarn'
 
       - name: Install dependencies
-        working-directory: expo-app
+        working-directory: packages/happy-app
         run: yarn install --frozen-lockfile
 
       - name: Setup Java
@@ -159,7 +159,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: android-prebuild
-          path: expo-app/android
+          path: packages/happy-app/android
 
       - name: Configure Gradle
         run: |
@@ -173,10 +173,10 @@ jobs:
           kotlin.incremental=true
           EOF
           # Disable lint completely to avoid OOM during lint analysis
-          echo "android.lint.enabled=false" >> expo-app/android/gradle.properties
+          echo "android.lint.enabled=false" >> packages/happy-app/android/gradle.properties
 
       - name: Build Release APK for ${{ matrix.abi }}
-        working-directory: expo-app/android
+        working-directory: packages/happy-app/android
         run: |
           chmod +x ./gradlew
           ./gradlew assembleRelease --no-daemon --build-cache -PreactNativeArchitectures=${{ matrix.abi }}
@@ -185,7 +185,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-release-${{ matrix.abi }}-${{ github.job }}
-          path: expo-app/android/app/build/outputs/apk/release/app-release.apk
+          path: packages/happy-app/android/app/build/outputs/apk/release/app-release.apk
           retention-days: 14
 
   # Release build - runs on workflow_dispatch only
@@ -239,11 +239,11 @@ jobs:
             gradle-${{ runner.os }}-
 
       - name: Install dependencies
-        working-directory: expo-app
+        working-directory: packages/happy-app
         run: yarn install --frozen-lockfile
 
       - name: Generate native Android project
-        working-directory: expo-app
+        working-directory: packages/happy-app
         run: npx expo prebuild --platform android --no-install
         env:
           APP_ENV: ${{ github.event.inputs.app_env }}
@@ -260,17 +260,17 @@ jobs:
           kotlin.incremental=true
           EOF
           # Disable lint completely to avoid OOM during lint analysis
-          echo "android.lint.enabled=false" >> expo-app/android/gradle.properties
+          echo "android.lint.enabled=false" >> packages/happy-app/android/gradle.properties
 
       - name: Decode keystore
         if: env.ANDROID_KEYSTORE_BASE64 != ''
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > expo-app/android/app/release.keystore
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > packages/happy-app/android/app/release.keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
 
       - name: Build Release APK for ${{ matrix.abi }}
-        working-directory: expo-app/android
+        working-directory: packages/happy-app/android
         run: |
           chmod +x ./gradlew
           ./gradlew assembleRelease --no-daemon --build-cache -PreactNativeArchitectures=${{ matrix.abi }}
@@ -283,5 +283,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-release-${{ matrix.abi }}-${{ github.job }}
-          path: expo-app/android/app/build/outputs/apk/release/app-release.apk
+          path: packages/happy-app/android/app/build/outputs/apk/release/app-release.apk
           retention-days: 14
