@@ -102,6 +102,11 @@ export function sessionRoutes(app: Fastify) {
                 dataEncryptionKey: true,
                 active: true,
                 lastActiveAt: true,
+                messages: {
+                    select: { seq: true },
+                    orderBy: { seq: 'desc' },
+                    take: 1
+                }
             }
         });
 
@@ -118,6 +123,7 @@ export function sessionRoutes(app: Fastify) {
                 agentState: v.agentState,
                 agentStateVersion: v.agentStateVersion,
                 dataEncryptionKey: v.dataEncryptionKey ? Buffer.from(v.dataEncryptionKey).toString('base64') : null,
+                lastSeq: v.messages[0]?.seq ?? null
             }))
         });
     });
@@ -182,6 +188,11 @@ export function sessionRoutes(app: Fastify) {
                 dataEncryptionKey: true,
                 active: true,
                 lastActiveAt: true,
+                messages: {
+                    select: { seq: true },
+                    orderBy: { seq: 'desc' },
+                    take: 1
+                }
             }
         });
 
@@ -209,6 +220,7 @@ export function sessionRoutes(app: Fastify) {
                 agentState: v.agentState,
                 agentStateVersion: v.agentStateVersion,
                 dataEncryptionKey: v.dataEncryptionKey ? Buffer.from(v.dataEncryptionKey).toString('base64') : null,
+                lastSeq: v.messages[0]?.seq ?? null
             })),
             nextCursor,
             hasNext
