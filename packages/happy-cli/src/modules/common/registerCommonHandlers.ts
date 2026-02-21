@@ -135,6 +135,10 @@ export interface SpawnSessionOptions {
         // Note: TMUX_TMPDIR is used by tmux to store socket files when default /tmp is not suitable
         // Common use case: When /tmp has limited space or different permissions
     };
+    /** Bash script to source before spawning the session.
+     *  Runs via `source <script> && env` to capture exported env vars.
+     *  The captured variables are merged into the session environment. */
+    startupBashScript?: string;
 }
 
 export type SpawnSessionResult =

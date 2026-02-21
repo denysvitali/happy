@@ -17,7 +17,8 @@ import { writeDaemonState, DaemonLocallyPersistedState, readDaemonState, acquire
 
 import { cleanupDaemonState, isDaemonRunningCurrentlyInstalledHappyVersion, stopDaemon } from './controlClient';
 import { startDaemonControlServer } from './controlServer';
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync, unlinkSync } from 'fs';
+import { execSync } from 'child_process';
 import { join } from 'path';
 import { projectPath } from '@/projectPath';
 import { getTmuxUtilities, isTmuxAvailable, parseTmuxSessionIdentifier, formatTmuxSessionIdentifier } from '@/utils/tmux';
@@ -332,6 +333,56 @@ export async function startDaemon(): Promise<void> {
         // Example: ANTHROPIC_AUTH_TOKEN="${Z_AI_AUTH_TOKEN}" → ANTHROPIC_AUTH_TOKEN="sk-real-key"
         extraEnv = expandEnvironmentVariables(extraEnv, process.env);
         logger.debug(`[DAEMON RUN] After variable expansion: ${Object.keys(extraEnv).join(', ')}`);
+
+        // Execute startup bash script if provided by the profile.
+        // Sources the script and captures any exported environment variables.
+        if (options.startupBashScript && options.startupBashScript.trim()) {
+          logger.info('[DAEMON RUN] Executing startup bash script');
+          try {
+            const scriptFile = tmp.fileSync({ prefix: 'happy-startup-', postfix: '.sh' });
+            writeFileSync(scriptFile.name, options.startupBashScript);
+            // Source the script and print env — we parse the output to capture
+            // any environment variables the script exports.
+            const envOutput = execSync(
+              `bash -c 'source ${JSON.stringify(scriptFile.name)} >&2 && env'`,
+              {
+                cwd: directory,
+                env: { ...process.env, ...extraEnv },
+                timeout: 30_000,
+                encoding: 'utf-8',
+                // stdout = env output, stderr = script output (visible in logs)
+              }
+            );
+            unlinkSync(scriptFile.name);
+
+            // Parse env output and merge new/changed variables
+            const scriptEnv: Record<string, string> = {};
+            for (const line of envOutput.split('\n')) {
+              const eqIdx = line.indexOf('=');
+              if (eqIdx > 0) {
+                scriptEnv[line.slice(0, eqIdx)] = line.slice(eqIdx + 1);
+              }
+            }
+            // Only merge variables that are new or changed vs process.env
+            const baseEnv = { ...process.env, ...extraEnv };
+            let mergedCount = 0;
+            for (const [key, value] of Object.entries(scriptEnv)) {
+              if (baseEnv[key] !== value) {
+                extraEnv[key] = value;
+                mergedCount++;
+              }
+            }
+            logger.info(`[DAEMON RUN] Startup script set ${mergedCount} environment variable(s)`);
+            logger.debug(`[DAEMON RUN] After startup script, env keys: ${Object.keys(extraEnv).join(', ')}`);
+          } catch (scriptError: any) {
+            const errorMessage = `Startup bash script failed: ${scriptError.message || scriptError}`;
+            logger.warn(`[DAEMON RUN] ${errorMessage}`);
+            return {
+              type: 'error',
+              errorMessage
+            };
+          }
+        }
 
         // Fail-fast validation: Check that any auth variables present are fully expanded
         // Only validate variables that are actually set (different agents need different auth)
