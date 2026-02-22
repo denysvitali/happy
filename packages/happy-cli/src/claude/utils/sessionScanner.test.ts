@@ -208,4 +208,152 @@ describe('sessionScanner', () => {
     //   expect(lastAssistantMsg.message.id).toBe('msg_01KWeuP88pkzRtXmggJRnQmV')
     // }
   })
+
+  it('should read subagent jsonl logs and emit tool events', async () => {
+    scanner = await createSessionScanner({
+      sessionId: null,
+      workingDirectory: testDir,
+      onMessage: (msg) => collectedMessages.push(msg)
+    })
+
+    const sessionId = '6af9782d-5a8a-4f2d-9f33-6f2f8f648acc'
+    const sessionFile = join(projectDir, `${sessionId}.jsonl`)
+    const subagentDir = join(projectDir, sessionId, 'subagents')
+    const subagentFile = join(subagentDir, 'agent-a123456.jsonl')
+    await mkdir(subagentDir, { recursive: true })
+
+    const topLevelUser = {
+      type: 'user',
+      uuid: 'u-top-1',
+      timestamp: '2026-01-01T00:00:00.000Z',
+      message: {
+        role: 'user',
+        content: 'start'
+      }
+    }
+
+    const subagentToolUse = {
+      type: 'assistant',
+      uuid: 'a-sub-1',
+      timestamp: '2026-01-01T00:00:01.000Z',
+      isSidechain: true,
+      message: {
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool_use',
+            id: 'tool_123',
+            name: 'Bash',
+            input: {
+              command: 'echo hi'
+            }
+          }
+        ]
+      }
+    }
+
+    const subagentToolResult = {
+      type: 'user',
+      uuid: 'u-sub-1',
+      timestamp: '2026-01-01T00:00:02.000Z',
+      isSidechain: true,
+      message: {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'tool_123',
+            content: 'ok'
+          }
+        ]
+      }
+    }
+
+    await writeFile(sessionFile, `${JSON.stringify(topLevelUser)}\n`)
+    await writeFile(
+      subagentFile,
+      `${JSON.stringify(subagentToolUse)}\n${JSON.stringify(subagentToolResult)}\n`,
+    )
+
+    scanner.onNewSession(sessionId)
+    await new Promise(resolve => setTimeout(resolve, 250))
+
+    const hasToolUseMessage = collectedMessages.some((msg) => {
+      if (msg.type !== 'assistant') {
+        return false
+      }
+      const content = msg.message?.content
+      if (!Array.isArray(content)) {
+        return false
+      }
+      return content.some((item: any) => item?.type === 'tool_use' && item?.id === 'tool_123')
+    })
+    expect(hasToolUseMessage).toBe(true)
+
+    const hasToolResultMessage = collectedMessages.some((msg) => {
+      if (msg.type !== 'user') {
+        return false
+      }
+      const content = msg.message?.content
+      if (!Array.isArray(content)) {
+        return false
+      }
+      return content.some((item: any) => item?.type === 'tool_result' && item?.tool_use_id === 'tool_123')
+    })
+    expect(hasToolResultMessage).toBe(true)
+  })
+
+  it('should process sessions that only have subagent logs', async () => {
+    scanner = await createSessionScanner({
+      sessionId: null,
+      workingDirectory: testDir,
+      onMessage: (msg) => collectedMessages.push(msg)
+    })
+
+    const sessionId = '571c74ec-7db4-4435-9ac5-9bbfd6e80f9a'
+    const subagentDir = join(projectDir, sessionId, 'subagents')
+    const subagentFile = join(subagentDir, 'agent-a999999.jsonl')
+    await mkdir(subagentDir, { recursive: true })
+
+    const sidechainUser = {
+      type: 'user',
+      uuid: 'u-sub-only-1',
+      isSidechain: true,
+      timestamp: '2026-01-01T00:00:00.000Z',
+      message: {
+        role: 'user',
+        content: 'subagent prompt'
+      }
+    }
+
+    const sidechainAssistant = {
+      type: 'assistant',
+      uuid: 'a-sub-only-1',
+      isSidechain: true,
+      timestamp: '2026-01-01T00:00:01.000Z',
+      message: {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'subagent response' }]
+      }
+    }
+
+    await writeFile(
+      subagentFile,
+      `${JSON.stringify(sidechainUser)}\n${JSON.stringify(sidechainAssistant)}\n`,
+    )
+
+    scanner.onNewSession(sessionId)
+    await new Promise(resolve => setTimeout(resolve, 250))
+
+    expect(
+      collectedMessages.some(
+        (msg) => msg.type !== 'summary' && msg.uuid === 'u-sub-only-1',
+      ),
+    ).toBe(true)
+    expect(
+      collectedMessages.some(
+        (msg) => msg.type !== 'summary' && msg.uuid === 'a-sub-only-1',
+      ),
+    ).toBe(true)
+  })
 })

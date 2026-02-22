@@ -1,7 +1,7 @@
 import { InvalidateSync } from "@/utils/sync";
 import { RawJSONLines, RawJSONLinesSchema } from "../types";
 import { join } from "node:path";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { logger } from "@/ui/logger";
 import { startFileWatcher } from "@/modules/watcher/startFileWatcher";
 import { getProjectPath } from "./path";
@@ -168,41 +168,117 @@ function messageKey(message: RawJSONLines): string {
  * Returns only valid conversation messages, silently skipping internal events
  */
 async function readSessionLog(projectDir: string, sessionId: string): Promise<RawJSONLines[]> {
-    const expectedSessionFile = join(projectDir, `${sessionId}.jsonl`);
-    logger.debug(`[SESSION_SCANNER] Reading session file: ${expectedSessionFile}`);
-    let file: string;
-    try {
-        file = await readFile(expectedSessionFile, 'utf-8');
-    } catch (error) {
-        logger.debug(`[SESSION_SCANNER] Session file not found: ${expectedSessionFile}`);
+    const sessionFiles = await listSessionLogFiles(projectDir, sessionId);
+    if (sessionFiles.length === 0) {
         return [];
     }
-    let lines = file.split('\n');
-    let messages: RawJSONLines[] = [];
-    for (let l of lines) {
+
+    const parsedMessages: Array<{
+        message: RawJSONLines;
+        order: number;
+        timestampMs: number | null;
+    }> = [];
+
+    let order = 0;
+    for (const sessionFile of sessionFiles) {
+        logger.debug(`[SESSION_SCANNER] Reading session file: ${sessionFile}`);
+        let file: string;
         try {
-            if (l.trim() === '') {
-                continue;
-            }
-            let message = JSON.parse(l);
-            
-            // Silently skip known internal Claude Code events
-            // These are state/tracking events, not conversation messages
-            if (message.type && INTERNAL_CLAUDE_EVENT_TYPES.has(message.type)) {
-                continue;
-            }
-            
-            let parsed = RawJSONLinesSchema.safeParse(message);
-            if (!parsed.success) {
-                // Unknown message types are silently skipped
-                // They will be tracked by processedMessageKeys to avoid reprocessing
-                continue;
-            }
-            messages.push(parsed.data);
-        } catch (e) {
-            logger.debug(`[SESSION_SCANNER] Error processing message: ${e}`);
+            file = await readFile(sessionFile, 'utf-8');
+        } catch (error) {
+            logger.debug(`[SESSION_SCANNER] Session file not found: ${sessionFile}`);
             continue;
         }
+
+        const lines = file.split('\n');
+        for (const l of lines) {
+            try {
+                if (l.trim() === '') {
+                    continue;
+                }
+                const message = JSON.parse(l);
+
+                // Silently skip known internal Claude Code events
+                // These are state/tracking events, not conversation messages
+                if (message.type && INTERNAL_CLAUDE_EVENT_TYPES.has(message.type)) {
+                    continue;
+                }
+
+                const parsed = RawJSONLinesSchema.safeParse(message);
+                if (!parsed.success) {
+                    // Unknown message types are silently skipped
+                    // They will be tracked by processedMessageKeys to avoid reprocessing
+                    continue;
+                }
+                parsedMessages.push({
+                    message: parsed.data,
+                    order: order++,
+                    timestampMs: getMessageTimestampMs(parsed.data),
+                });
+            } catch (e) {
+                logger.debug(`[SESSION_SCANNER] Error processing message: ${e}`);
+                continue;
+            }
+        }
     }
-    return messages;
+
+    parsedMessages.sort((a, b) => {
+        if (a.timestampMs !== null && b.timestampMs !== null && a.timestampMs !== b.timestampMs) {
+            return a.timestampMs - b.timestampMs;
+        }
+        return a.order - b.order;
+    });
+
+    return parsedMessages.map((entry) => entry.message);
+}
+
+async function listSessionLogFiles(projectDir: string, sessionId: string): Promise<string[]> {
+    const files: string[] = [];
+
+    const topLevelSessionFile = join(projectDir, `${sessionId}.jsonl`);
+    if (await pathExists(topLevelSessionFile)) {
+        files.push(topLevelSessionFile);
+    }
+
+    const subagentDir = join(projectDir, sessionId, 'subagents');
+    try {
+        const entries = await readdir(subagentDir, { withFileTypes: true });
+        for (const entry of entries) {
+            if (!entry.isFile()) {
+                continue;
+            }
+            if (!entry.name.endsWith('.jsonl')) {
+                continue;
+            }
+            files.push(join(subagentDir, entry.name));
+        }
+    } catch {
+        // Directory does not exist in many sessions - ignore.
+    }
+
+    return files;
+}
+
+async function pathExists(path: string): Promise<boolean> {
+    try {
+        await stat(path);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function getMessageTimestampMs(message: RawJSONLines): number | null {
+    const raw = message as { timestamp?: unknown };
+    const timestamp = raw.timestamp;
+    if (typeof timestamp === 'number' && Number.isFinite(timestamp)) {
+        return timestamp;
+    }
+    if (typeof timestamp === 'string') {
+        const parsed = Date.parse(timestamp);
+        if (!Number.isNaN(parsed)) {
+            return parsed;
+        }
+    }
+    return null;
 }
