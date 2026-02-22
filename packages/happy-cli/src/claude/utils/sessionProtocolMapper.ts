@@ -14,8 +14,16 @@ export type ClaudeSessionProtocolState = {
     subagentTitles?: Map<string, string>;
     bufferedSubagentMessages?: Map<string, RawJSONLines[]>;
     hiddenParentToolCalls?: Set<string>;
+    backgroundTaskCalls?: Set<string>;
     startedSubagents?: Set<string>;
     activeSubagents?: Set<string>;
+    /**
+     * Persistent mapping of background Task toolUseId → sessionSubagentId.
+     * Unlike providerSubagentToSessionSubagent, this is NOT cleared by
+     * clearSubagentTracking, so sidechain messages from backgroundAgentOutputWatcher
+     * can still be routed to the correct subagent even after the main turn ends.
+     */
+    backgroundTaskSubagentIds?: Map<string, string>;
 };
 
 type ClaudeMapperResult = {
@@ -59,7 +67,8 @@ function getSessionSubagentIdForProviderSubagent(
     state: ClaudeSessionProtocolState,
     providerSubagent: string,
 ): string | undefined {
-    return getProviderSubagentToSessionSubagent(state).get(providerSubagent);
+    return getProviderSubagentToSessionSubagent(state).get(providerSubagent)
+        ?? state.backgroundTaskSubagentIds?.get(providerSubagent);
 }
 
 function ensureSessionSubagentIdForProviderSubagent(
@@ -95,6 +104,20 @@ function getHiddenParentToolCalls(state: ClaudeSessionProtocolState): Set<string
         state.hiddenParentToolCalls = new Set<string>();
     }
     return state.hiddenParentToolCalls;
+}
+
+function getBackgroundTaskCalls(state: ClaudeSessionProtocolState): Set<string> {
+    if (!state.backgroundTaskCalls) {
+        state.backgroundTaskCalls = new Set<string>();
+    }
+    return state.backgroundTaskCalls;
+}
+
+function getBackgroundTaskSubagentIds(state: ClaudeSessionProtocolState): Map<string, string> {
+    if (!state.backgroundTaskSubagentIds) {
+        state.backgroundTaskSubagentIds = new Map<string, string>();
+    }
+    return state.backgroundTaskSubagentIds;
 }
 
 function bufferSubagentMessage(state: ClaudeSessionProtocolState, subagent: string, message: RawJSONLines): void {
@@ -363,6 +386,7 @@ function clearSubagentTracking(state: ClaudeSessionProtocolState): void {
     getSubagentTitles(state).clear();
     getBufferedSubagentMessages(state).clear();
     getHiddenParentToolCalls(state).clear();
+    getBackgroundTaskCalls(state).clear();
     getStartedSubagents(state).clear();
     getActiveSubagents(state).clear();
 }
@@ -492,14 +516,28 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
                         queueTaskPromptSubagent(state, prompt, call);
                     }
                     setSubagentTitle(state, sessionSubagentForCall, pickTaskTitle(block.input) ?? prompt);
-                    getHiddenParentToolCalls(state).add(call);
+
+                    const isBackground = (block.input as Record<string, unknown>)?.run_in_background === true;
+                    if (isBackground) {
+                        // Background tasks are visible so the client can show them as a block
+                        // and navigate to their output. Don't hide or skip tool-call-start.
+                        getBackgroundTaskCalls(state).add(call);
+                        // Persist the subagent ID mapping so sidechain messages from
+                        // backgroundAgentOutputWatcher are correctly routed even after the
+                        // main turn ends and clearSubagentTracking is called.
+                        getBackgroundTaskSubagentIds(state).set(call, sessionSubagentForCall);
+                    } else {
+                        getHiddenParentToolCalls(state).add(call);
+                    }
 
                     const buffered = consumeBufferedSubagentMessages(state, call);
                     for (const bufferedMessage of buffered) {
                         const replay = mapClaudeLogMessageToSessionEnvelopesInternal(bufferedMessage, state);
                         envelopes.push(...replay.envelopes);
                     }
-                    continue;
+                    if (!isBackground) {
+                        continue;
+                    }
                 }
 
                 envelopes.push(createEnvelope('agent', {
@@ -564,13 +602,24 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
                         getHiddenParentToolCalls(state).delete(block.tool_use_id);
                         continue;
                     }
+                    if (getBackgroundTaskCalls(state).has(block.tool_use_id)) {
+                        // Background task result — let it fall through to emit tool-call-end normally.
+                        // The output_file in the result will be picked up by the file watcher.
+                        getBackgroundTaskCalls(state).delete(block.tool_use_id);
+                    }
                     if (sessionSubagentForToolResult) {
                         maybeEmitSubagentStop(state, turnId, sessionSubagentForToolResult, envelopes);
                     }
                 }
+                // Extract result content and error status from tool_result block
+                const resultContent = typeof block.content === 'string' ? block.content : '';
+                const isError = block.is_error === true;
+
                 envelopes.push(createEnvelope('agent', {
                     t: 'tool-call-end',
                     call: block.tool_use_id,
+                    result: resultContent,
+                    isError,
                 }, { turn: turnId, subagent }));
                 continue;
             }

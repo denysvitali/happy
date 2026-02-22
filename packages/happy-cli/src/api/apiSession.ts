@@ -510,6 +510,9 @@ export class ApiSessionClient extends EventEmitter {
                 };
             }
             case 'tool-call-end': {
+                const resultContent = typeof envelope.ev.result === 'string' ? envelope.ev.result : '';
+                const isError = envelope.ev.isError === true;
+
                 return {
                     role: 'agent',
                     content: {
@@ -523,8 +526,8 @@ export class ApiSessionClient extends EventEmitter {
                                 content: [{
                                     type: 'tool_result',
                                     tool_use_id: envelope.ev.call,
-                                    content: '',
-                                    is_error: false,
+                                    content: resultContent,
+                                    is_error: isError,
                                 }],
                             },
                         },
