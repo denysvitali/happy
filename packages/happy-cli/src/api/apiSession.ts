@@ -407,8 +407,43 @@ export class ApiSessionClient extends EventEmitter {
     }
 
     private enqueueSessionProtocolEnvelope(envelope: SessionEnvelope, invalidate: boolean = true) {
-        // Transform session envelope to AgentMessage format expected by Flutter
-        // Flutter expects: { role: 'agent', content: { type: 'output', data: ... } }
+        // Transform session envelope to the format expected by Flutter's _processOutputContent
+        // Flutter expects:
+        //   data.type = 'assistant'
+        //   data.message = { role: 'assistant', content: [...] }
+        //
+        // SessionEnvelope has:
+        //   role: 'agent' | 'user'
+        //   ev: { t: 'text' | 'thinking' | 'tool_use' | 'stop' | 'turn-start' | 'turn-end', ... }
+
+        // Only process agent messages with text content for display
+        if (envelope.role === 'agent' && envelope.ev.t === 'text') {
+            const text = (envelope.ev as { text?: string }).text;
+            if (text) {
+                const content = {
+                    role: 'agent',
+                    content: {
+                        type: 'output',
+                        data: {
+                            type: 'assistant',
+                            message: {
+                                role: 'assistant',
+                                content: [
+                                    { type: 'text', text }
+                                ]
+                            }
+                        }
+                    },
+                    meta: {
+                        sentFrom: 'cli'
+                    }
+                };
+                this.enqueueMessage(content, invalidate);
+                return;
+            }
+        }
+
+        // For non-text agent messages or user messages, still send but they won't be displayed
         const content = {
             role: 'agent',
             content: {
