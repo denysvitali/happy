@@ -314,24 +314,31 @@ export class ApiSessionClient extends EventEmitter {
         }
 
         const batch = this.pendingOutbox.slice();
-        const response = await axios.post<V3PostSessionMessagesResponse>(
-            `${configuration.serverUrl}/v3/sessions/${encodeURIComponent(this.sessionId)}/messages`,
-            {
-                messages: batch
-            },
-            {
-                headers: this.authHeaders(),
-                timeout: 60000
-            }
-        );
+        logger.debug(`[API SESSION] flushOutbox: attempting to send ${batch.length} messages to server`);
+        try {
+            const response = await axios.post<V3PostSessionMessagesResponse>(
+                `${configuration.serverUrl}/v3/sessions/${encodeURIComponent(this.sessionId)}/messages`,
+                {
+                    messages: batch
+                },
+                {
+                    headers: this.authHeaders(),
+                    timeout: 60000
+                }
+            );
 
-        this.pendingOutbox.splice(0, batch.length);
+            this.pendingOutbox.splice(0, batch.length);
 
-        const messages = Array.isArray(response.data.messages) ? response.data.messages : [];
-        const maxSeq = messages.reduce((acc, message) => (
-            message.seq > acc ? message.seq : acc
-        ), this.lastSeq);
-        this.lastSeq = maxSeq;
+            const messages = Array.isArray(response.data.messages) ? response.data.messages : [];
+            const maxSeq = messages.reduce((acc, message) => (
+                message.seq > acc ? message.seq : acc
+            ), this.lastSeq);
+            this.lastSeq = maxSeq;
+            logger.debug(`[API SESSION] flushOutbox: successfully sent ${batch.length} messages, lastSeq: ${this.lastSeq}`);
+        } catch (error) {
+            logger.debug(`[API SESSION] flushOutbox: ERROR sending messages:`, error);
+            throw error; // Re-throw so backoff can retry
+        }
     }
 
     private enqueueMessage(content: unknown, invalidate: boolean = true) {
@@ -340,6 +347,7 @@ export class ApiSessionClient extends EventEmitter {
             content: encrypted,
             localId: randomUUID()
         });
+        logger.debug(`[API SESSION] enqueueMessage: added to outbox, pending count: ${this.pendingOutbox.length}`);
         if (invalidate) {
             this.sendSync.invalidate();
         }
@@ -399,9 +407,14 @@ export class ApiSessionClient extends EventEmitter {
     }
 
     private enqueueSessionProtocolEnvelope(envelope: SessionEnvelope, invalidate: boolean = true) {
+        // Transform session envelope to AgentMessage format expected by Flutter
+        // Flutter expects: { role: 'agent', content: { type: 'output', data: ... } }
         const content = {
-            role: 'session',
-            content: envelope,
+            role: 'agent',
+            content: {
+                type: 'output',
+                data: envelope
+            },
             meta: {
                 sentFrom: 'cli'
             }
