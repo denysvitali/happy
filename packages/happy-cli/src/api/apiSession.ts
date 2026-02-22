@@ -406,55 +406,190 @@ export class ApiSessionClient extends EventEmitter {
         this.enqueueMessage(content);
     }
 
-    private enqueueSessionProtocolEnvelope(envelope: SessionEnvelope, invalidate: boolean = true) {
-        // Transform session envelope to the format expected by Flutter's _processOutputContent
-        // Flutter expects:
-        //   data.type = 'assistant'
-        //   data.message = { role: 'assistant', content: [...] }
-        //
-        // SessionEnvelope has:
-        //   role: 'agent' | 'user'
-        //   ev: { t: 'text' | 'thinking' | 'tool_use' | 'stop' | 'turn-start' | 'turn-end', ... }
+    private mapSessionEnvelopeToCompatMessage(envelope: SessionEnvelope): Record<string, unknown> | null {
+        const sidechainData = envelope.subagent
+            ? {
+                isSidechain: true,
+                parentUuid: envelope.subagent,
+            }
+            : {};
 
-        // Only process agent messages with text content for display
-        if (envelope.role === 'agent' && envelope.ev.t === 'text') {
-            const text = (envelope.ev as { text?: string }).text;
-            if (text) {
-                const content = {
+        if (envelope.role === 'user') {
+            if (envelope.ev.t !== 'text') {
+                return null;
+            }
+
+            return {
+                role: 'user',
+                content: {
+                    type: 'text',
+                    text: envelope.ev.text,
+                },
+                meta: {
+                    sentFrom: 'cli',
+                },
+            };
+        }
+
+        switch (envelope.ev.t) {
+            case 'text': {
+                const item = envelope.ev.thinking
+                    ? { type: 'thinking', thinking: envelope.ev.text }
+                    : { type: 'text', text: envelope.ev.text };
+
+                return {
                     role: 'agent',
                     content: {
                         type: 'output',
                         data: {
+                            ...sidechainData,
                             type: 'assistant',
+                            uuid: envelope.id,
                             message: {
                                 role: 'assistant',
-                                content: [
-                                    { type: 'text', text }
-                                ]
-                            }
-                        }
+                                model: 'session-protocol',
+                                content: [item],
+                            },
+                        },
                     },
                     meta: {
-                        sentFrom: 'cli'
-                    }
+                        sentFrom: 'cli',
+                    },
                 };
-                this.enqueueMessage(content, invalidate);
-                return;
             }
+            case 'service': {
+                return {
+                    role: 'agent',
+                    content: {
+                        type: 'output',
+                        data: {
+                            ...sidechainData,
+                            type: 'assistant',
+                            uuid: envelope.id,
+                            message: {
+                                role: 'assistant',
+                                model: 'session-protocol',
+                                content: [{ type: 'text', text: envelope.ev.text }],
+                            },
+                        },
+                    },
+                    meta: {
+                        sentFrom: 'cli',
+                    },
+                };
+            }
+            case 'tool-call-start': {
+                const args = envelope.ev.args as Record<string, unknown>;
+                return {
+                    role: 'agent',
+                    content: {
+                        type: 'output',
+                        data: {
+                            ...sidechainData,
+                            type: 'assistant',
+                            uuid: envelope.id,
+                            message: {
+                                role: 'assistant',
+                                model: 'session-protocol',
+                                content: [{
+                                    type: 'tool_use',
+                                    id: envelope.ev.call,
+                                    name: envelope.ev.name,
+                                    input: {
+                                        ...args,
+                                        title: envelope.ev.title,
+                                        description: envelope.ev.description,
+                                    },
+                                }],
+                            },
+                        },
+                    },
+                    meta: {
+                        sentFrom: 'cli',
+                    },
+                };
+            }
+            case 'tool-call-end': {
+                return {
+                    role: 'agent',
+                    content: {
+                        type: 'output',
+                        data: {
+                            ...sidechainData,
+                            type: 'user',
+                            uuid: envelope.id,
+                            message: {
+                                role: 'user',
+                                content: [{
+                                    type: 'tool_result',
+                                    tool_use_id: envelope.ev.call,
+                                    content: '',
+                                    is_error: false,
+                                }],
+                            },
+                        },
+                    },
+                    meta: {
+                        sentFrom: 'cli',
+                    },
+                };
+            }
+            case 'file': {
+                return {
+                    role: 'agent',
+                    content: {
+                        type: 'output',
+                        data: {
+                            ...sidechainData,
+                            type: 'assistant',
+                            uuid: envelope.id,
+                            message: {
+                                role: 'assistant',
+                                model: 'session-protocol',
+                                content: [{
+                                    type: 'tool_use',
+                                    id: envelope.id,
+                                    name: 'file',
+                                    input: {
+                                        ref: envelope.ev.ref,
+                                        name: envelope.ev.name,
+                                        size: envelope.ev.size,
+                                        ...(envelope.ev.image ? { image: envelope.ev.image } : {}),
+                                    },
+                                }],
+                            },
+                        },
+                    },
+                    meta: {
+                        sentFrom: 'cli',
+                    },
+                };
+            }
+            case 'turn-end': {
+                return {
+                    role: 'agent',
+                    content: {
+                        type: 'event',
+                        id: envelope.id,
+                        data: {
+                            type: 'ready',
+                        },
+                    },
+                    meta: {
+                        sentFrom: 'cli',
+                    },
+                };
+            }
+            default:
+                return null;
         }
+    }
 
-        // For non-text agent messages or user messages, still send but they won't be displayed
-        const content = {
-            role: 'agent',
-            content: {
-                type: 'output',
-                data: envelope
-            },
-            meta: {
-                sentFrom: 'cli'
-            }
-        };
-
+    private enqueueSessionProtocolEnvelope(envelope: SessionEnvelope, invalidate: boolean = true) {
+        const content = this.mapSessionEnvelopeToCompatMessage(envelope);
+        if (!content) {
+            return;
+        }
         this.enqueueMessage(content, invalidate);
     }
 

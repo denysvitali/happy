@@ -300,7 +300,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
         expect((client as any).lastSeq).toBe(1);
     });
 
-    it('sends claude user text as modern session envelope', async () => {
+    it('sends claude user text as user text for compatibility clients', async () => {
         const client = new ApiSessionClient('fake-token', session);
         mockAxiosPost.mockResolvedValueOnce({
             data: {
@@ -327,23 +327,19 @@ describe('ApiSessionClient v3 messages API migration', () => {
             session.encryptionVariant,
             decodeBase64(payload.messages[0].content)
         );
-        expect(sessionUser).toMatchObject({
-            role: 'session',
+        expect(sessionUser).toEqual({
+            role: 'user',
             content: {
-                role: 'user',
-                ev: {
-                    t: 'text',
-                    text: 'hi there'
-                }
+                type: 'text',
+                text: 'hi there',
             },
             meta: {
                 sentFrom: 'cli'
             }
         });
-        expect(typeof (sessionUser as any).content.time).toBe('number');
     });
 
-    it('sends session protocol messages through enqueueMessage with session envelope', async () => {
+    it('maps agent session text envelopes to output assistant records', async () => {
         const client = new ApiSessionClient('fake-token', session);
         mockAxiosPost.mockResolvedValueOnce({
             data: {
@@ -372,15 +368,31 @@ describe('ApiSessionClient v3 messages API migration', () => {
         );
 
         expect(decrypted).toEqual({
-            role: 'session',
-            content: envelope,
+            role: 'agent',
+            content: {
+                type: 'output',
+                data: {
+                    type: 'assistant',
+                    uuid: 'env-1',
+                    message: {
+                        role: 'assistant',
+                        model: 'session-protocol',
+                        content: [
+                            {
+                                type: 'text',
+                                text: 'hello from session protocol'
+                            }
+                        ]
+                    }
+                }
+            },
             meta: {
                 sentFrom: 'cli'
             }
         });
     });
 
-    it('sends only modern payload for user session envelopes', async () => {
+    it('maps user text envelopes to plain user text records', async () => {
         const client = new ApiSessionClient('fake-token', session);
         mockAxiosPost.mockResolvedValueOnce({
             data: {
@@ -407,18 +419,19 @@ describe('ApiSessionClient v3 messages API migration', () => {
             session.encryptionVariant,
             decodeBase64(payload.messages[0].content)
         );
-        expect(sessionUser).toMatchObject({
-            role: 'session',
+        expect(sessionUser).toEqual({
+            role: 'user',
             content: {
-                id: 'env-user-1',
-                time: 1001,
-                role: 'user',
-                ev: { t: 'text', text: 'shadow this' }
-            }
+                type: 'text',
+                text: 'shadow this',
+            },
+            meta: {
+                sentFrom: 'cli',
+            },
         });
     });
 
-    it('sends modern session envelope for user text even when ENABLE_SESSION_PROTOCOL_SEND is set', async () => {
+    it('keeps user text envelope mapping when ENABLE_SESSION_PROTOCOL_SEND is set', async () => {
         process.env.ENABLE_SESSION_PROTOCOL_SEND = 'true';
 
         const client = new ApiSessionClient('fake-token', session);
@@ -448,17 +461,128 @@ describe('ApiSessionClient v3 messages API migration', () => {
             decodeBase64(payload.messages[0].content)
         );
 
-        expect(sessionOnly).toMatchObject({
-            role: 'session',
+        expect(sessionOnly).toEqual({
+            role: 'user',
             content: {
-                role: 'user',
-                ev: { t: 'text', text: 'session only' }
+                type: 'text',
+                text: 'session only',
             },
             meta: {
                 sentFrom: 'cli'
             }
         });
-        expect(typeof (sessionOnly as any).content.time).toBe('number');
+    });
+
+    it('maps session tool-call lifecycle envelopes to tool_use/tool_result output records', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        mockAxiosPost
+            .mockResolvedValueOnce({
+                data: {
+                    messages: [{ id: 'msg-1', seq: 1, localId: 'local-1', createdAt: 1, updatedAt: 1 }]
+                }
+            })
+            .mockResolvedValueOnce({
+                data: {
+                    messages: [{ id: 'msg-2', seq: 2, localId: 'local-2', createdAt: 2, updatedAt: 2 }]
+                }
+            });
+
+        client.sendSessionProtocolMessage({
+            id: 'env-tool-start',
+            time: 1003,
+            role: 'agent',
+            turn: 'turn-1',
+            ev: {
+                t: 'tool-call-start',
+                call: 'call-1',
+                name: 'Bash',
+                title: 'Run `ls`',
+                description: 'Run shell command',
+                args: { command: 'ls' },
+            },
+        });
+
+        await waitForCheck(() => {
+            expect(mockAxiosPost).toHaveBeenCalledTimes(1);
+        });
+
+        client.sendSessionProtocolMessage({
+            id: 'env-tool-end',
+            time: 1004,
+            role: 'agent',
+            turn: 'turn-1',
+            ev: {
+                t: 'tool-call-end',
+                call: 'call-1',
+            },
+        });
+
+        await waitForCheck(() => {
+            expect(mockAxiosPost).toHaveBeenCalledTimes(2);
+        });
+
+        const startPayload = mockAxiosPost.mock.calls[0][1];
+        const startDecrypted = decrypt(
+            session.encryptionKey,
+            session.encryptionVariant,
+            decodeBase64(startPayload.messages[0].content)
+        );
+        expect(startDecrypted).toEqual({
+            role: 'agent',
+            content: {
+                type: 'output',
+                data: {
+                    type: 'assistant',
+                    uuid: 'env-tool-start',
+                    message: {
+                        role: 'assistant',
+                        model: 'session-protocol',
+                        content: [{
+                            type: 'tool_use',
+                            id: 'call-1',
+                            name: 'Bash',
+                            input: {
+                                command: 'ls',
+                                title: 'Run `ls`',
+                                description: 'Run shell command',
+                            },
+                        }],
+                    },
+                },
+            },
+            meta: {
+                sentFrom: 'cli',
+            },
+        });
+
+        const endPayload = mockAxiosPost.mock.calls[1][1];
+        const endDecrypted = decrypt(
+            session.encryptionKey,
+            session.encryptionVariant,
+            decodeBase64(endPayload.messages[0].content)
+        );
+        expect(endDecrypted).toEqual({
+            role: 'agent',
+            content: {
+                type: 'output',
+                data: {
+                    type: 'user',
+                    uuid: 'env-tool-end',
+                    message: {
+                        role: 'user',
+                        content: [{
+                            type: 'tool_result',
+                            tool_use_id: 'call-1',
+                            content: '',
+                            is_error: false,
+                        }],
+                    },
+                },
+            },
+            meta: {
+                sentFrom: 'cli',
+            },
+        });
     });
 
     it('sends ACP agent messages through enqueueMessage', async () => {
