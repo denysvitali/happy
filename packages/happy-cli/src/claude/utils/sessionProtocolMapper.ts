@@ -526,17 +526,12 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
                         // backgroundAgentOutputWatcher are correctly routed even after the
                         // main turn ends and clearSubagentTracking is called.
                         getBackgroundTaskSubagentIds(state).set(call, sessionSubagentForCall);
-                    } else {
-                        getHiddenParentToolCalls(state).add(call);
                     }
 
                     const buffered = consumeBufferedSubagentMessages(state, call);
                     for (const bufferedMessage of buffered) {
                         const replay = mapClaudeLogMessageToSessionEnvelopesInternal(bufferedMessage, state);
                         envelopes.push(...replay.envelopes);
-                    }
-                    if (!isBackground) {
-                        continue;
                     }
                 }
 

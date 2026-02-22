@@ -97,6 +97,7 @@ export class ApiSessionClient extends EventEmitter {
         startedSubagents: new Set<string>(),
         activeSubagents: new Set<string>(),
     };
+    private compatSubagentState: Map<string, { lastUuid: string | null; rootEmitted: boolean }> = new Map();
     private lastSeq = 0;
     private pendingOutbox: Array<{ content: string; localId: string }> = [];
     private readonly sendSync: InvalidateSync;
@@ -406,11 +407,24 @@ export class ApiSessionClient extends EventEmitter {
         this.enqueueMessage(content);
     }
 
+    private getCompatSubagentState(subagent: string): { lastUuid: string | null; rootEmitted: boolean } {
+        const existing = this.compatSubagentState.get(subagent);
+        if (existing) {
+            return existing;
+        }
+        const created = { lastUuid: null, rootEmitted: false };
+        this.compatSubagentState.set(subagent, created);
+        return created;
+    }
+
     private mapSessionEnvelopeToCompatMessage(envelope: SessionEnvelope): Record<string, unknown> | null {
+        const sidechainState = envelope.subagent
+            ? this.getCompatSubagentState(envelope.subagent)
+            : null;
         const sidechainData = envelope.subagent
             ? {
                 isSidechain: true,
-                parentUuid: envelope.subagent,
+                ...(sidechainState?.lastUuid ? { parentUuid: sidechainState.lastUuid } : {}),
             }
             : {};
 
@@ -433,10 +447,36 @@ export class ApiSessionClient extends EventEmitter {
 
         switch (envelope.ev.t) {
             case 'text': {
+                if (envelope.subagent && sidechainState && !sidechainState.rootEmitted && !envelope.ev.thinking) {
+                    sidechainState.rootEmitted = true;
+                    sidechainState.lastUuid = envelope.id;
+                    return {
+                        role: 'agent',
+                        content: {
+                            type: 'output',
+                            data: {
+                                ...sidechainData,
+                                type: 'user',
+                                uuid: envelope.id,
+                                message: {
+                                    role: 'user',
+                                    content: envelope.ev.text,
+                                },
+                            },
+                        },
+                        meta: {
+                            sentFrom: 'cli',
+                        },
+                    };
+                }
+
                 const item = envelope.ev.thinking
                     ? { type: 'thinking', thinking: envelope.ev.text }
                     : { type: 'text', text: envelope.ev.text };
 
+                if (sidechainState) {
+                    sidechainState.lastUuid = envelope.id;
+                }
                 return {
                     role: 'agent',
                     content: {
@@ -458,6 +498,9 @@ export class ApiSessionClient extends EventEmitter {
                 };
             }
             case 'service': {
+                if (sidechainState) {
+                    sidechainState.lastUuid = envelope.id;
+                }
                 return {
                     role: 'agent',
                     content: {
@@ -480,6 +523,9 @@ export class ApiSessionClient extends EventEmitter {
             }
             case 'tool-call-start': {
                 const args = envelope.ev.args as Record<string, unknown>;
+                if (sidechainState) {
+                    sidechainState.lastUuid = envelope.id;
+                }
                 return {
                     role: 'agent',
                     content: {
@@ -513,6 +559,9 @@ export class ApiSessionClient extends EventEmitter {
                 const resultContent = typeof envelope.ev.result === 'string' ? envelope.ev.result : '';
                 const isError = envelope.ev.isError === true;
 
+                if (sidechainState) {
+                    sidechainState.lastUuid = envelope.id;
+                }
                 return {
                     role: 'agent',
                     content: {
@@ -538,6 +587,9 @@ export class ApiSessionClient extends EventEmitter {
                 };
             }
             case 'file': {
+                if (sidechainState) {
+                    sidechainState.lastUuid = envelope.id;
+                }
                 return {
                     role: 'agent',
                     content: {
@@ -569,6 +621,7 @@ export class ApiSessionClient extends EventEmitter {
                 };
             }
             case 'turn-end': {
+                this.compatSubagentState.clear();
                 return {
                     role: 'agent',
                     content: {
@@ -583,6 +636,20 @@ export class ApiSessionClient extends EventEmitter {
                     },
                 };
             }
+            case 'start': {
+                if (envelope.subagent) {
+                    this.compatSubagentState.set(envelope.subagent, { lastUuid: null, rootEmitted: false });
+                }
+                return null;
+            }
+            case 'stop': {
+                if (envelope.subagent) {
+                    this.compatSubagentState.delete(envelope.subagent);
+                }
+                return null;
+            }
+            case 'turn-start':
+                return null;
             default:
                 return null;
         }

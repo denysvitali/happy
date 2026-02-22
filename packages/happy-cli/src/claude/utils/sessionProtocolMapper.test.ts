@@ -136,7 +136,7 @@ describe('mapClaudeLogMessageToSessionEnvelopes', () => {
         expect(parent.envelopes.some((envelope) => {
             return envelope.ev.t === 'tool-call-start'
                 && envelope.ev.call === 'task-buffer-1';
-        })).toBe(false);
+        })).toBe(true);
         const bufferedText = parent.envelopes.find((envelope) => {
             return envelope.ev.t === 'text'
                 && envelope.ev.text === 'buffer me';
@@ -170,7 +170,7 @@ describe('mapClaudeLogMessageToSessionEnvelopes', () => {
         expect(taskToolUse.envelopes.some((envelope) => {
             return envelope.ev.t === 'tool-call-start'
                 && envelope.ev.call === 'task-call-1';
-        })).toBe(false);
+        })).toBe(true);
 
         const sidechainRoot = mapClaudeLogMessageToSessionEnvelopes({
             type: 'user',
