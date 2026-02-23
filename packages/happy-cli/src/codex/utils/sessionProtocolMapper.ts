@@ -320,9 +320,20 @@ export function mapCodexMcpMessageToSessionEnvelopes(message: Record<string, unk
 
     if (type === 'exec_command_end') {
         const call = pickCallId(message);
+        const execMessage = message as { output?: unknown; error?: unknown };
+        const resultContent = typeof execMessage.output === 'string'
+            ? execMessage.output
+            : (typeof execMessage.error === 'string' ? execMessage.error : '');
+        const isError = execMessage.error != null;
+
         const envelopes: SessionEnvelope[] = [];
         maybeEmitSubagentStart(subagent, opts, startedSubagents, activeSubagents, envelopes);
-        envelopes.push(createEnvelope('agent', { t: 'tool-call-end', call }, opts));
+        envelopes.push(createEnvelope('agent', {
+            t: 'tool-call-end',
+            call,
+            result: resultContent,
+            isError,
+        }, opts));
         return {
             currentTurnId: state.currentTurnId,
             startedSubagents,
@@ -363,9 +374,20 @@ export function mapCodexMcpMessageToSessionEnvelopes(message: Record<string, unk
 
     if (type === 'patch_apply_end') {
         const call = pickCallId(message);
+        const patchMessage = message as { stdout?: unknown; stderr?: unknown; success?: boolean };
+        const resultContent = patchMessage.success
+            ? (typeof patchMessage.stdout === 'string' ? patchMessage.stdout : 'Files modified successfully')
+            : (typeof patchMessage.stderr === 'string' ? patchMessage.stderr : 'Failed to modify files');
+        const isError = !patchMessage.success;
+
         const envelopes: SessionEnvelope[] = [];
         maybeEmitSubagentStart(subagent, opts, startedSubagents, activeSubagents, envelopes);
-        envelopes.push(createEnvelope('agent', { t: 'tool-call-end', call }, opts));
+        envelopes.push(createEnvelope('agent', {
+            t: 'tool-call-end',
+            call,
+            result: resultContent,
+            isError,
+        }, opts));
         return {
             currentTurnId: state.currentTurnId,
             startedSubagents,
@@ -418,17 +440,16 @@ export function mapCodexProcessorMessageToSessionEnvelopes(
 
     if (message.type === 'tool-call-result') {
         const envelopes: SessionEnvelope[] = [];
-        const content = toolLikeMessage.output?.content;
-        if (typeof content === 'string' && content.trim().length > 0) {
-            envelopes.push(createEnvelope('agent', {
-                t: 'text',
-                text: content,
-                thinking: true,
-            }, opts));
-        }
+        const resultContent = typeof toolLikeMessage.output?.content === 'string'
+            ? toolLikeMessage.output.content
+            : '';
+        const isError = toolLikeMessage.output?.status === 'canceled';
+
         envelopes.push(createEnvelope('agent', {
             t: 'tool-call-end',
             call: toolLikeMessage.callId,
+            result: resultContent,
+            isError,
         }, opts));
         return envelopes;
     }
